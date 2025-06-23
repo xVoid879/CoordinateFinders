@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Cloud Pattern Finder</title>
+<style>
+  body { font-family: Arial, sans-serif; margin: 20px; }
+  textarea { width: 100%; height: 150px; font-family: monospace; }
+  #results { white-space: pre-wrap; margin-top: 20px; }
+  button { margin-top: 10px; }
+  .image-select button { margin-right: 10px; }
+</style>
+</head>
+<body>
+
+<h2>Cloud Pattern Finder</h2>
+
+<div>
+  <label for="patternInput">Enter Pattern (use 0,1,? chars, one line per row):</label><br />
+  <textarea id="patternInput" placeholder="Example pattern:
+001?
+01??
+..."></textarea>
+</div>
+
+<div class="image-select">
+  <label>Select Cloud Image Version:</label><br />
+  <button data-version="old">25w20a- (clouds_old.png)</button>
+  <button data-version="new">25w21a+ (clouds.png)</button>
+</div>
+
+<div>
+  <button id="runButton">Find Pattern</button>
+</div>
+
+<div id="results"></div>
+
+<!-- Hidden canvas to process image pixels -->
+<canvas id="imageCanvas" style="display:none;"></canvas>
+
+<script>
+const directionMap = ["north", "west", "south", "east"];
+
+let selectedVersion = 'old';  // default version
+const imagePaths = {
+  old: 'clouds_old.png',  // Replace with real URLs or paths
+  new: 'clouds.png'
+};
+
+const patternInput = document.getElementById('patternInput');
+const resultsDiv = document.getElementById('results');
+const canvas = document.getElementById('imageCanvas');
+const ctx = canvas.getContext('2d');
+
+// Add image version button handlers
+document.querySelectorAll('.image-select button').forEach(button => {
+  button.onclick = () => {
+    selectedVersion = button.dataset.version;
+    resultsDiv.textContent = `Selected version: ${selectedVersion}`;
+  };
+});
+
+// Utility: rotate 90 degrees CCW
+function rotate90Matrix(m) {
+  let m2 = [];
+  for(let j=0; j<m[0].length; j++) {
+    m2.push([]);
+    for(let i = m.length - 1; i >= 0; i--) {
+      m2[j].push(m[i][j]);
+    }
+  }
+  return m2;
+}
+
+// Utility: mirror matrix horizontally
+function mirrorMatrix(m) {
+  return m.map(row => row.slice().reverse());
+}
+
+// Compare two matrices for equality
+function matricesEqual(a, b) {
+  if (a.length !== b.length) return false;
+  for(let i=0; i<a.length; i++) {
+    if (a[i].length !== b[i].length) return false;
+    for(let j=0; j<a[i].length; j++) {
+      if (a[i][j] !== b[i][j]) return false;
+    }
+  }
+  return true;
+}
+
+// Determine direction and rotation index
+function determineDirection(inputMatrix, outputMatrix) {
+  let currentMatrix = inputMatrix;
+  for (let i = 0; i < 4; i++) {
+    if (matricesEqual(currentMatrix, outputMatrix)) {
+      return {direction: directionMap[i], rotationIndex: i};
+    }
+    currentMatrix = rotate90Matrix(currentMatrix);
+  }
+  return null;
+}
+
+// Parse pattern string into 2D array
+function parsePattern(text) {
+  return text.trim().split('\n').map(line => line.trim().split(''));
+}
+
+// Main pattern search
+async function findCloudPattern(imageSrc, pattern) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      canvas.width = img.width;
+      canvas.height = img.height;
+      ctx.clearRect(0, 0, img.width, img.height);
+      ctx.drawImage(img, 0, 0);
+
+      let width = img.width;
+      let height = img.height;
+
+      let patterns = [];
+      let matches = [[], [], [], []];
+
+      let currentPattern = pattern;
+
+      for (let o = 0; o < 4; o++) {
+        if (o !== 0) currentPattern = rotate90Matrix(currentPattern);
+        patterns.push(currentPattern);
+
+        for (let y = 0; y < height; y++) {
+          for (let x = 0; x < width; x++) {
+            let match = true;
+            outer: for (let i = 0; i < currentPattern.length; i++) {
+              for (let j = 0; j < currentPattern[i].length; j++) {
+                let pixel_x = (x + j) % width;
+                let pixel_y = (y + i) % height;
+                let pixelData = ctx.getImageData(pixel_x, pixel_y, 1, 1).data;
+                let r = pixelData[0], g = pixelData[1], b = pixelData[2], a = pixelData[3];
+
+                let patternChar = currentPattern[i][j];
+
+                if (patternChar !== '?' && ((a !== 255) === Boolean(Number(patternChar)))) {
+                  match = false;
+                  break outer;
+                }
+              }
+            }
+            if (match) matches[o].push([x, y]);
+          }
+        }
+      }
+      resolve({patterns, matches});
+    };
+    img.onerror = () => reject('Failed to load image: ' + imageSrc);
+    img.src = imageSrc;
+  });
+}
+
+// Button click handler
+document.getElementById('runButton').onclick = async () => {
+  resultsDiv.textContent = 'Processing...';
+  try {
+    let patternText = patternInput.value;
+    if (!patternText.trim()) {
+      resultsDiv.textContent = 'Please enter a pattern.';
+      return;
+    }
+    let inputPattern = parsePattern(patternText);
+
+    // You can optionally mirror here if you want to support from_bottom = True
+    // inputPattern = mirrorMatrix(inputPattern);
+
+    let {patterns, matches} = await findCloudPattern(imagePaths[selectedVersion], inputPattern);
+
+    let totalMatches = matches.reduce((acc, arr) => acc + arr.length, 0);
+
+    if (totalMatches === 0) {
+      resultsDiv.textContent = 'Pattern not found';
+      return;
+    }
+
+    let outputText = `Got ${totalMatches} match${totalMatches > 1 ? 'es' : ''}\n\n`;
+
+    for (let i = 0; i < matches.length; i++) {
+      for (let match of matches[i]) {
+        let directionInfo = determineDirection(inputPattern, patterns[i]);
+        let inputDir = directionInfo ? directionInfo.direction : 'unknown';
+        outputText += `Input oriented: ${inputDir}, inserted from TOP\n`;
+        outputText += `Match at (x=${match[0]}, y=${match[1]}), pattern:\n`;
+        outputText += patterns[i].map(row => row.join('')).join('\n') + '\n\n';
+      }
+    }
+
+    resultsDiv.textContent = outputText;
+  } catch (err) {
+    resultsDiv.textContent = 'Error: ' + err;
+  }
+};
+
+</script>
+
+</body>
+</html>
