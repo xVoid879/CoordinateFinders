@@ -1,23 +1,82 @@
-<!-- index.html -->
+<!-- index.html (Dark Mode Version) -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <title>Cloud Pattern Finder</title>
   <style>
-    body { font-family: Arial, sans-serif; margin: 20px; }
-    textarea { width: 100%; height: 150px; font-family: monospace; }
-    #results { white-space: pre-wrap; margin-top: 20px; }
-    button { margin-top: 10px; }
-    .image-select button { margin-right: 10px; }
+    :root {
+      color-scheme: dark;
+    }
+
+    body {
+      background-color: #121212;
+      color: #e0e0e0;
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+
+    h2 {
+      color: #ffffff;
+    }
+
+    textarea {
+      width: 100%;
+      height: 150px;
+      font-family: monospace;
+      background-color: #1e1e1e;
+      color: #dcdcdc;
+      border: 1px solid #444;
+      padding: 8px;
+      border-radius: 5px;
+    }
+
+    #results {
+      white-space: pre-wrap;
+      margin-top: 20px;
+      background-color: #1e1e1e;
+      border: 1px solid #444;
+      padding: 10px;
+      border-radius: 5px;
+    }
+
+    button {
+      background-color: #333;
+      color: #f1f1f1;
+      border: 1px solid #555;
+      padding: 8px 16px;
+      margin-top: 10px;
+      margin-right: 10px;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+
+    button:hover {
+      background-color: #444;
+    }
+
+    .image-select {
+      margin-top: 10px;
+    }
+
+    canvas {
+      display: none;
+    }
+
+    label {
+      display: block;
+      margin: 10px 0 4px;
+      font-weight: bold;
+    }
   </style>
 </head>
 <body>
 
-<h2>Cloud Pattern Finder</h2>
+<h2>🌌 Cloud Pattern Finder</h2>
 
 <div>
-  <label for="patternInput">Enter Pattern (use 0, 1, ? for unknowns):</label><br />
+  <label for="patternInput">Enter Pattern (use 0, 1, ? for unknowns):</label>
   <textarea id="patternInput" placeholder="Example:
 001?
 01??
@@ -25,19 +84,18 @@
 </div>
 
 <div class="image-select">
-  <label>Select Cloud Image Version:</label><br />
+  <label>Select Cloud Image Version:</label>
   <button data-version="old">25w20a- (clouds_old.png)</button>
   <button data-version="new">25w21a+ (clouds.png)</button>
 </div>
 
 <div>
-  <button id="runButton">Find Pattern</button>
+  <button id="runButton">🔍 Find Pattern</button>
 </div>
 
 <div id="results"></div>
 
-<!-- Hidden canvas for image processing -->
-<canvas id="imageCanvas" style="display:none;"></canvas>
+<canvas id="imageCanvas"></canvas>
 
 <script>
 const directionMap = ["north", "west", "south", "east"];
