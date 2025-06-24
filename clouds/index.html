@@ -356,9 +356,9 @@
     const y = Math.floor(e.clientY - rect.top);
     document.getElementById('pixelCoords').textContent = `Pixel: (${x}, ${y})`;
     if (drawing) {
-      viewerCtx.fillStyle = 'red';
-      viewerCtx.fillRect(x, y, 1, 1);
-    }
+  viewerCtx.fillStyle = 'red';
+  viewerCtx.fillRect(x - 2, y - 2, 5, 5); 
+}
   });
 
   viewerCanvas.addEventListener('mousedown', () => drawing = true);
