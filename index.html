@@ -1,9 +1,8 @@
-<!-- index.html (Dark Mode Version) -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Cloud Pattern Finder</title>
+  <title>Coordinate Finders</title>
   <style>
     :root {
       color-scheme: dark;
@@ -73,7 +72,7 @@
 </head>
 <body>
 
-<h2>🌌 Cloud Pattern Finder</h2>
+<h2>Cloud Pattern Finder</h2>
 
 <div>
   <label for="patternInput">Enter Pattern (use 0, 1, ? for unknowns):</label>
@@ -84,7 +83,7 @@
 </div>
 
 <div class="image-select">
-  <label>Select Cloud Image Version:</label>
+  <label>Select Cloud Version:</label>
   <button data-version="old">25w20a- (clouds_old.png)</button>
   <button data-version="new">25w21a+ (clouds.png)</button>
 </div>
@@ -265,7 +264,7 @@ document.getElementById('runButton').onclick = async () => {
         outputText += patterns[i].map(row => row.join('')).join('\n') + '\n';
 
         const validZCoords = getValidCoords(10000, match[1], false);
-        outputText += `Estimated Z coordinates for spawnRange 10000:\n`;
+        outputText += `Estimated Z coordinates (SpawnRange:10000):\n`;
         outputText += validZCoords.join(', ') + '\n\n';
       }
     }
