@@ -101,7 +101,8 @@
     }
 
     canvas {
-      display: none;
+      margin-top: 10px;
+      border: 1px solid #555;
     }
 
     label {
@@ -113,219 +114,264 @@
 </head>
 <body>
 
-  <header>
-    <h1>☁️ Clouds</h1>
-    <nav>
-      <a href="/"><button>Home</button></a>
-      <a href="/clouds/"><button>Clouds</button></a>
-      <a href="/textures/"><button>Textures</button></a>
-      <a href="/credits/"><button>Credits</button></a>
-    </nav>
-  </header>
+<header>
+  <h1>☁️ Clouds</h1>
+  <nav>
+    <a href="/"><button>Home</button></a>
+    <a href="/clouds/"><button>Clouds</button></a>
+    <a href="/textures/"><button>Textures</button></a>
+    <a href="/credits/"><button>Credits</button></a>
+  </nav>
+</header>
 
-  <main>
-    <h2>Cloud Pattern Finder</h2>
+<main>
+  <h2>Cloud Pattern Finder</h2>
 
-    <div>
-      <label for="patternInput">Enter Pattern (use 0, 1, ?):</label>
-      <textarea id="patternInput" placeholder="Example:
+  <div>
+    <label for="patternInput">Enter Pattern (use 0, 1, ?):</label>
+    <textarea id="patternInput" placeholder="Example:
 001?
 01??
 ..."></textarea>
-    </div>
+  </div>
 
-    <div class="image-select">
-      <label>Select Cloud Version:</label>
-      <button data-version="old">25w20a- (clouds_old.png)</button>
-      <button data-version="new">25w21a+ (clouds.png)</button>
-    </div>
+  <div class="image-select">
+    <label>Select Cloud Version:</label>
+    <button data-version="old">25w20a- (clouds_old.png)</button>
+    <button data-version="new">25w21a+ (clouds.png)</button>
+  </div>
 
-    <div>
-      <button id="runButton">🔍 Find Pattern</button>
-    </div>
+  <div>
+    <button id="runButton">🔍 Find Pattern</button>
+  </div>
 
-    <div id="results"></div>
-    <canvas id="imageCanvas"></canvas>
-  </main>
+  <div id="results"></div>
+  <canvas id="imageCanvas" style="display: none;"></canvas>
 
-  <script>
-    const directionMap = ["north", "west", "south", "east"];
-    const imagePaths = {
-      old: 'image/clouds_old.png',
-      new: 'image/clouds.png'
+  <hr />
+  <h2>Pixel Viewer and Editor</h2>
+  <div>
+    <label>Select Version:</label>
+    <button onclick="loadViewer('old')">Old (clouds_old.png)</button>
+    <button onclick="loadViewer('new')">New (clouds.png)</button>
+  </div>
+  <canvas id="viewerCanvas" width="512" height="512" style="cursor: crosshair;"></canvas>
+  <div>
+    <p id="pixelCoords">Hover over the image to see coordinates.</p>
+    <button onclick="downloadCanvas()">📥 Download Edited Image</button>
+  </div>
+</main>
+
+<script>
+  const directionMap = ["north", "west", "south", "east"];
+  const imagePaths = {
+    old: 'image/clouds_old.png',
+    new: 'image/clouds.png'
+  };
+
+  let selectedVersion = 'old';
+  const patternInput = document.getElementById('patternInput');
+  const resultsDiv = document.getElementById('results');
+  const canvas = document.getElementById('imageCanvas');
+  const ctx = canvas.getContext('2d');
+
+  document.querySelectorAll('.image-select button').forEach(button => {
+    button.onclick = () => {
+      selectedVersion = button.dataset.version;
+      resultsDiv.textContent = `Selected version: ${selectedVersion}`;
     };
+  });
 
-    let selectedVersion = 'old';
-    const patternInput = document.getElementById('patternInput');
-    const resultsDiv = document.getElementById('results');
-    const canvas = document.getElementById('imageCanvas');
-    const ctx = canvas.getContext('2d');
-
-    document.querySelectorAll('.image-select button').forEach(button => {
-      button.onclick = () => {
-        selectedVersion = button.dataset.version;
-        resultsDiv.textContent = `Selected version: ${selectedVersion}`;
-      };
-    });
-
-    function rotate90Matrix(m) {
-      let m2 = [];
-      for (let j = 0; j < m[0].length; j++) {
-        m2.push([]);
-        for (let i = m.length - 1; i >= 0; i--) {
-          m2[j].push(m[i][j]);
-        }
+  function rotate90Matrix(m) {
+    let m2 = [];
+    for (let j = 0; j < m[0].length; j++) {
+      m2.push([]);
+      for (let i = m.length - 1; i >= 0; i--) {
+        m2[j].push(m[i][j]);
       }
-      return m2;
+    }
+    return m2;
+  }
+
+  function mirrorMatrix(m) {
+    return m.map(row => row.slice().reverse());
+  }
+
+  function matricesEqual(a, b) {
+    if (a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i++) {
+      if (a[i].length !== b[i].length) return false;
+      for (let j = 0; j < a[i].length; j++) {
+        if (a[i][j] !== b[i][j]) return false;
+      }
+    }
+    return true;
+  }
+
+  function determineDirection(inputMatrix, outputMatrix) {
+    let currentMatrix = inputMatrix;
+    for (let i = 0; i < 4; i++) {
+      if (matricesEqual(currentMatrix, outputMatrix)) {
+        return { direction: directionMap[i], rotationIndex: i };
+      }
+      currentMatrix = rotate90Matrix(currentMatrix);
+    }
+    return null;
+  }
+
+  function parsePattern(text) {
+    return text.trim().split('\n').map(line => line.trim().split(''));
+  }
+
+  function getValidCoords(spawnRange, pixelZ, fast) {
+    const coords = [];
+    const blocks = fast ? 8 : 12;
+    const gridSize = blocks * 256;
+    const intQuotient = Math.floor(spawnRange / gridSize);
+    const zOffset = pixelZ * blocks;
+
+    let min_i = -intQuotient - 1;
+    if ((gridSize * min_i) - 4 + zOffset < -spawnRange) min_i += 1;
+
+    let max_i = intQuotient;
+    if ((gridSize * max_i) - 4 + zOffset > spawnRange) max_i -= 1;
+
+    for (let i = min_i; i <= max_i; i++) {
+      coords.push((gridSize * i) - 4 + zOffset);
     }
 
-    function mirrorMatrix(m) {
-      return m.map(row => row.slice().reverse());
-    }
+    return coords;
+  }
 
-    function matricesEqual(a, b) {
-      if (a.length !== b.length) return false;
-      for (let i = 0; i < a.length; i++) {
-        if (a[i].length !== b[i].length) return false;
-        for (let j = 0; j < a[i].length; j++) {
-          if (a[i][j] !== b[i][j]) return false;
-        }
-      }
-      return true;
-    }
+  async function findCloudPattern(imageSrc, pattern) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        canvas.width = img.width;
+        canvas.height = img.height;
+        ctx.clearRect(0, 0, img.width, img.height);
+        ctx.drawImage(img, 0, 0);
 
-    function determineDirection(inputMatrix, outputMatrix) {
-      let currentMatrix = inputMatrix;
-      for (let i = 0; i < 4; i++) {
-        if (matricesEqual(currentMatrix, outputMatrix)) {
-          return { direction: directionMap[i], rotationIndex: i };
-        }
-        currentMatrix = rotate90Matrix(currentMatrix);
-      }
-      return null;
-    }
+        let width = img.width;
+        let height = img.height;
 
-    function parsePattern(text) {
-      return text.trim().split('\n').map(line => line.trim().split(''));
-    }
+        let patterns = [];
+        let matches = [[], [], [], []];
 
-    function getValidCoords(spawnRange, pixelZ, fast) {
-      const coords = [];
-      const blocks = fast ? 8 : 12;
-      const gridSize = blocks * 256;
+        let currentPattern = pattern;
 
-      const intQuotient = Math.floor(spawnRange / gridSize);
-      const zOffset = pixelZ * blocks;
+        for (let o = 0; o < 4; o++) {
+          if (o !== 0) currentPattern = rotate90Matrix(currentPattern);
+          patterns.push(currentPattern);
 
-      let min_i = -intQuotient - 1;
-      if ((gridSize * min_i) - 4 + zOffset < -spawnRange) {
-        min_i += 1;
-      }
+          for (let y = 0; y < height; y++) {
+            for (let x = 0; x < width; x++) {
+              let match = true;
+              outer: for (let i = 0; i < currentPattern.length; i++) {
+                for (let j = 0; j < currentPattern[i].length; j++) {
+                  let pixel_x = (x + j) % width;
+                  let pixel_y = (y + i) % height;
+                  let pixelData = ctx.getImageData(pixel_x, pixel_y, 1, 1).data;
+                  let a = pixelData[3];
 
-      let max_i = intQuotient;
-      if ((gridSize * max_i) - 4 + zOffset > spawnRange) {
-        max_i -= 1;
-      }
-
-      for (let i = min_i; i <= max_i; i++) {
-        coords.push((gridSize * i) - 4 + zOffset);
-      }
-
-      return coords;
-    }
-
-    async function findCloudPattern(imageSrc, pattern) {
-      return new Promise((resolve, reject) => {
-        const img = new Image();
-        img.crossOrigin = 'anonymous';
-        img.onload = () => {
-          canvas.width = img.width;
-          canvas.height = img.height;
-          ctx.clearRect(0, 0, img.width, img.height);
-          ctx.drawImage(img, 0, 0);
-
-          let width = img.width;
-          let height = img.height;
-
-          let patterns = [];
-          let matches = [[], [], [], []];
-
-          let currentPattern = pattern;
-
-          for (let o = 0; o < 4; o++) {
-            if (o !== 0) currentPattern = rotate90Matrix(currentPattern);
-            patterns.push(currentPattern);
-
-            for (let y = 0; y < height; y++) {
-              for (let x = 0; x < width; x++) {
-                let match = true;
-                outer: for (let i = 0; i < currentPattern.length; i++) {
-                  for (let j = 0; j < currentPattern[i].length; j++) {
-                    let pixel_x = (x + j) % width;
-                    let pixel_y = (y + i) % height;
-                    let pixelData = ctx.getImageData(pixel_x, pixel_y, 1, 1).data;
-                    let a = pixelData[3];
-
-                    let patternChar = currentPattern[i][j];
-
-                    if (patternChar !== '?' && ((a !== 255) === Boolean(Number(patternChar)))) {
-                      match = false;
-                      break outer;
-                    }
+                  let patternChar = currentPattern[i][j];
+                  if (patternChar !== '?' && ((a !== 255) === Boolean(Number(patternChar)))) {
+                    match = false;
+                    break outer;
                   }
                 }
-                if (match) matches[o].push([x, y]);
               }
+              if (match) matches[o].push([x, y]);
             }
           }
-          resolve({ patterns, matches });
-        };
-        img.onerror = () => reject('Failed to load image: ' + imageSrc);
-        img.src = imageSrc;
-      });
-    }
-
-    document.getElementById('runButton').onclick = async () => {
-      resultsDiv.textContent = 'Processing...';
-      try {
-        let patternText = patternInput.value;
-        if (!patternText.trim()) {
-          resultsDiv.textContent = 'Please enter a pattern.';
-          return;
         }
-        let inputPattern = parsePattern(patternText);
+        resolve({ patterns, matches });
+      };
+      img.onerror = () => reject('Failed to load image: ' + imageSrc);
+      img.src = imageSrc;
+    });
+  }
 
-        let { patterns, matches } = await findCloudPattern(imagePaths[selectedVersion], inputPattern);
-
-        let totalMatches = matches.reduce((acc, arr) => acc + arr.length, 0);
-
-        if (totalMatches === 0) {
-          resultsDiv.textContent = 'Pattern not found';
-          return;
-        }
-
-        let outputText = `Got ${totalMatches} match${totalMatches > 1 ? 'es' : ''}\n\n`;
-
-        for (let i = 0; i < matches.length; i++) {
-          for (let match of matches[i]) {
-            let directionInfo = determineDirection(inputPattern, patterns[i]);
-            let inputDir = directionInfo ? directionInfo.direction : 'unknown';
-            outputText += `Input oriented: ${inputDir}, inserted from TOP\n`;
-            outputText += `Match at (x=${match[0]}, y=${match[1]}), pattern:\n`;
-            outputText += patterns[i].map(row => row.join('')).join('\n') + '\n';
-
-            const validZCoords = getValidCoords(10000, match[1], false);
-            outputText += `Estimated Z coordinates (SpawnRange:10000):\n`;
-            outputText += validZCoords.join(', ') + '\n\n';
-          }
-        }
-
-        resultsDiv.textContent = outputText;
-      } catch (err) {
-        resultsDiv.textContent = 'Error: ' + err;
+  document.getElementById('runButton').onclick = async () => {
+    resultsDiv.textContent = 'Processing...';
+    try {
+      let patternText = patternInput.value;
+      if (!patternText.trim()) {
+        resultsDiv.textContent = 'Please enter a pattern.';
+        return;
       }
+      let inputPattern = parsePattern(patternText);
+      let { patterns, matches } = await findCloudPattern(imagePaths[selectedVersion], inputPattern);
+      let totalMatches = matches.reduce((acc, arr) => acc + arr.length, 0);
+
+      if (totalMatches === 0) {
+        resultsDiv.textContent = 'Pattern not found';
+        return;
+      }
+
+      let outputText = `Got ${totalMatches} match${totalMatches > 1 ? 'es' : ''}\n\n`;
+
+      for (let i = 0; i < matches.length; i++) {
+        for (let match of matches[i]) {
+          let directionInfo = determineDirection(inputPattern, patterns[i]);
+          let inputDir = directionInfo ? directionInfo.direction : 'unknown';
+          outputText += `Input oriented: ${inputDir}, inserted from TOP\n`;
+          outputText += `Match at (x=${match[0]}, y=${match[1]}), pattern:\n`;
+          outputText += patterns[i].map(row => row.join('')).join('\n') + '\n';
+
+          const validZCoords = getValidCoords(10000, match[1], false);
+          outputText += `Estimated Z coordinates (SpawnRange:10000):\n`;
+          outputText += validZCoords.join(', ') + '\n\n';
+        }
+      }
+
+      resultsDiv.textContent = outputText;
+    } catch (err) {
+      resultsDiv.textContent = 'Error: ' + err;
+    }
+  };
+
+  // Pixel Viewer & Editor
+  const viewerCanvas = document.getElementById('viewerCanvas');
+  const viewerCtx = viewerCanvas.getContext('2d');
+  let viewerImage = new Image();
+  let drawing = false;
+
+  function loadViewer(version) {
+    const imageSrc = imagePaths[version];
+    viewerImage = new Image();
+    viewerImage.crossOrigin = 'anonymous';
+    viewerImage.onload = () => {
+      viewerCanvas.width = viewerImage.width;
+      viewerCanvas.height = viewerImage.height;
+      viewerCtx.drawImage(viewerImage, 0, 0);
     };
-  </script>
+    viewerImage.src = imageSrc;
+  }
+
+  viewerCanvas.addEventListener('mousemove', (e) => {
+    const rect = viewerCanvas.getBoundingClientRect();
+    const x = Math.floor(e.clientX - rect.left);
+    const y = Math.floor(e.clientY - rect.top);
+    document.getElementById('pixelCoords').textContent = `Pixel: (${x}, ${y})`;
+    if (drawing) {
+      viewerCtx.fillStyle = 'red';
+      viewerCtx.fillRect(x, y, 1, 1);
+    }
+  });
+
+  viewerCanvas.addEventListener('mousedown', () => drawing = true);
+  viewerCanvas.addEventListener('mouseup', () => drawing = false);
+  viewerCanvas.addEventListener('mouseleave', () => drawing = false);
+
+  function downloadCanvas() {
+    const link = document.createElement('a');
+    link.download = 'edited_clouds.png';
+    link.href = viewerCanvas.toDataURL();
+    link.click();
+  }
+</script>
 
 </body>
 </html>
