@@ -12,41 +12,48 @@
       background-color: #121212;
       color: #e0e0e0;
       font-family: Arial, sans-serif;
-      margin: 20px;
+      margin: 0;
+      padding: 0;
+    }
+
+    header {
+      background-color: #1e1e1e;
+      padding: 20px;
+      border-bottom: 1px solid #333;
+      text-align: center;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 28px;
+    }
+
+    main {
+      padding: 30px;
+      max-width: 800px;
+      margin: auto;
+    }
+
+    section {
+      margin-bottom: 40px;
     }
 
     h2 {
+      margin-bottom: 10px;
       color: #ffffff;
     }
 
-    textarea {
-      width: 100%;
-      height: 150px;
-      font-family: monospace;
-      background-color: #1e1e1e;
-      color: #dcdcdc;
-      border: 1px solid #444;
-      padding: 8px;
-      border-radius: 5px;
-    }
-
-    #results {
-      white-space: pre-wrap;
-      margin-top: 20px;
-      background-color: #1e1e1e;
-      border: 1px solid #444;
-      padding: 10px;
-      border-radius: 5px;
+    p, li {
+      line-height: 1.6;
     }
 
     button {
       background-color: #333;
       color: #f1f1f1;
       border: 1px solid #555;
-      padding: 8px 16px;
-      margin-top: 10px;
-      margin-right: 10px;
-      border-radius: 4px;
+      padding: 10px 20px;
+      border-radius: 6px;
+      font-size: 16px;
       cursor: pointer;
       transition: background-color 0.2s;
     }
@@ -55,226 +62,48 @@
       background-color: #444;
     }
 
-    .image-select {
-      margin-top: 10px;
+    .center {
+      text-align: center;
+      margin-top: 30px;
     }
 
-    canvas {
-      display: none;
-    }
-
-    label {
-      display: block;
-      margin: 10px 0 4px;
-      font-weight: bold;
+    ul {
+      padding-left: 20px;
     }
   </style>
 </head>
 <body>
 
-<h2>Cloud Pattern Finder</h2>
+  <header>
+    <h1>🧭 Coordinate Finders</h1>
+  </header>
 
-<div>
-  <label for="patternInput">Enter Pattern (use 0, 1, ?):</label>
-  <textarea id="patternInput" placeholder="Example:
-001?
-01??
-..."></textarea>
-</div>
+  <main>
+    <section>
+      <h2>Info</h2>
+      <p>
+        WIP
+      </p>
+    </section>
 
-<div class="image-select">
-  <label>Select Cloud Version:</label>
-  <button data-version="old">25w20a- (clouds_old.png)</button>
-  <button data-version="new">25w21a+ (clouds.png)</button>
-</div>
+    <section>
+      <h2>Steps</h2>
+      <h3>Clouds</h3>
+      <ul>
+        <li>WIP</li>
+      </ul>
+     <h3>Texture Rotations</h3>
+      <ul>
+        <li>WIP</li>
+      </ul>
+    </section>
 
-<div>
-  <button id="runButton">🔍 Find Pattern</button>
-</div>
-
-<div id="results"></div>
-
-<canvas id="imageCanvas"></canvas>
-
-<script>
-const directionMap = ["north", "west", "south", "east"];
-
-const imagePaths = {
-  old: 'image/clouds_old.png',
-  new: 'image/clouds.png'
-};
-
-let selectedVersion = 'old';
-const patternInput = document.getElementById('patternInput');
-const resultsDiv = document.getElementById('results');
-const canvas = document.getElementById('imageCanvas');
-const ctx = canvas.getContext('2d');
-
-document.querySelectorAll('.image-select button').forEach(button => {
-  button.onclick = () => {
-    selectedVersion = button.dataset.version;
-    resultsDiv.textContent = `Selected version: ${selectedVersion}`;
-  };
-});
-
-function rotate90Matrix(m) {
-  let m2 = [];
-  for (let j = 0; j < m[0].length; j++) {
-    m2.push([]);
-    for (let i = m.length - 1; i >= 0; i--) {
-      m2[j].push(m[i][j]);
-    }
-  }
-  return m2;
-}
-
-function mirrorMatrix(m) {
-  return m.map(row => row.slice().reverse());
-}
-
-function matricesEqual(a, b) {
-  if (a.length !== b.length) return false;
-  for (let i = 0; i < a.length; i++) {
-    if (a[i].length !== b[i].length) return false;
-    for (let j = 0; j < a[i].length; j++) {
-      if (a[i][j] !== b[i][j]) return false;
-    }
-  }
-  return true;
-}
-
-function determineDirection(inputMatrix, outputMatrix) {
-  let currentMatrix = inputMatrix;
-  for (let i = 0; i < 4; i++) {
-    if (matricesEqual(currentMatrix, outputMatrix)) {
-      return { direction: directionMap[i], rotationIndex: i };
-    }
-    currentMatrix = rotate90Matrix(currentMatrix);
-  }
-  return null;
-}
-
-function parsePattern(text) {
-  return text.trim().split('\n').map(line => line.trim().split(''));
-}
-
-function getValidCoords(spawnRange, pixelZ, fast) {
-  const coords = [];
-  const blocks = fast ? 8 : 12;
-  const gridSize = blocks * 256;
-
-  const intQuotient = Math.floor(spawnRange / gridSize);
-  const zOffset = pixelZ * blocks;
-
-  let min_i = -intQuotient - 1;
-  if ((gridSize * min_i) - 4 + zOffset < -spawnRange) {
-    min_i += 1;
-  }
-
-  let max_i = intQuotient;
-  if ((gridSize * max_i) - 4 + zOffset > spawnRange) {
-    max_i -= 1;
-  }
-
-  for (let i = min_i; i <= max_i; i++) {
-    coords.push((gridSize * i) - 4 + zOffset);
-  }
-
-  return coords;
-}
-
-async function findCloudPattern(imageSrc, pattern) {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => {
-      canvas.width = img.width;
-      canvas.height = img.height;
-      ctx.clearRect(0, 0, img.width, img.height);
-      ctx.drawImage(img, 0, 0);
-
-      let width = img.width;
-      let height = img.height;
-
-      let patterns = [];
-      let matches = [[], [], [], []];
-
-      let currentPattern = pattern;
-
-      for (let o = 0; o < 4; o++) {
-        if (o !== 0) currentPattern = rotate90Matrix(currentPattern);
-        patterns.push(currentPattern);
-
-        for (let y = 0; y < height; y++) {
-          for (let x = 0; x < width; x++) {
-            let match = true;
-            outer: for (let i = 0; i < currentPattern.length; i++) {
-              for (let j = 0; j < currentPattern[i].length; j++) {
-                let pixel_x = (x + j) % width;
-                let pixel_y = (y + i) % height;
-                let pixelData = ctx.getImageData(pixel_x, pixel_y, 1, 1).data;
-                let a = pixelData[3];
-
-                let patternChar = currentPattern[i][j];
-
-                if (patternChar !== '?' && ((a !== 255) === Boolean(Number(patternChar)))) {
-                  match = false;
-                  break outer;
-                }
-              }
-            }
-            if (match) matches[o].push([x, y]);
-          }
-        }
-      }
-      resolve({ patterns, matches });
-    };
-    img.onerror = () => reject('Failed to load image: ' + imageSrc);
-    img.src = imageSrc;
-  });
-}
-
-document.getElementById('runButton').onclick = async () => {
-  resultsDiv.textContent = 'Processing...';
-  try {
-    let patternText = patternInput.value;
-    if (!patternText.trim()) {
-      resultsDiv.textContent = 'Please enter a pattern.';
-      return;
-    }
-    let inputPattern = parsePattern(patternText);
-
-    let { patterns, matches } = await findCloudPattern(imagePaths[selectedVersion], inputPattern);
-
-    let totalMatches = matches.reduce((acc, arr) => acc + arr.length, 0);
-
-    if (totalMatches === 0) {
-      resultsDiv.textContent = 'Pattern not found';
-      return;
-    }
-
-    let outputText = `Got ${totalMatches} match${totalMatches > 1 ? 'es' : ''}\n\n`;
-
-    for (let i = 0; i < matches.length; i++) {
-      for (let match of matches[i]) {
-        let directionInfo = determineDirection(inputPattern, patterns[i]);
-        let inputDir = directionInfo ? directionInfo.direction : 'unknown';
-        outputText += `Input oriented: ${inputDir}, inserted from TOP\n`;
-        outputText += `Match at (x=${match[0]}, y=${match[1]}), pattern:\n`;
-        outputText += patterns[i].map(row => row.join('')).join('\n') + '\n';
-
-        const validZCoords = getValidCoords(10000, match[1], false);
-        outputText += `Estimated Z coordinates (SpawnRange:10000):\n`;
-        outputText += validZCoords.join(', ') + '\n\n';
-      }
-    }
-
-    resultsDiv.textContent = outputText;
-  } catch (err) {
-    resultsDiv.textContent = 'Error: ' + err;
-  }
-};
-</script>
+    <div class="center">
+      <a href="/clouds/">
+        <button>Clouds</button>
+      </a>
+    </div>
+  </main>
 
 </body>
 </html>
