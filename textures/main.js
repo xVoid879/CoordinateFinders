@@ -590,29 +590,29 @@ function handleGenerate() {
     
     switch (generationType) {
         case 'raw':
-            generateRaw(orientation, false);
+            generateRaw(orientation, 'comma');  // comma-separated values
             break;
         case 'spaced':
-            generateRaw(orientation, true);
+            generateRaw(orientation, 'spaced'); // space-separated values
+            break;
+        case 'rotationinfo':
+            generateRaw(orientation, 'rotationinfo'); // your RotationInfo format
             break;
         default:
             console.log('Unknown generation type:', generationType);
     }
 }
 
-function generateRaw(orientation = 'wall', spaced = false) {
+function generateRaw(orientation = 'wall', format = 'comma') {
     if (!squareDst || Object.keys(squareTexts).length === 0) {
         alert('No detected squares found. Please run detection on some squares first.');
         return;
     }
-    
+
     let output = '';
-    const separator = spaced ? ' ' : ',';
-    
-    // Find the range of grid coordinates to center around (0,0)
     let minI = Infinity, maxI = -Infinity;
     let minJ = Infinity, maxJ = -Infinity;
-    
+
     for (let key in squareTexts) {
         let [i, j] = key.split(',').map(Number);
         minI = Math.min(minI, i);
@@ -620,36 +620,39 @@ function generateRaw(orientation = 'wall', spaced = false) {
         minJ = Math.min(minJ, j);
         maxJ = Math.max(maxJ, j);
     }
-    
-    // Calculate center offset to make the grid centered around (0,0)
+
     let centerI = Math.floor((minI + maxI) / 2);
     let centerJ = Math.floor((minJ + maxJ) / 2);
-    
-    // Process each detected square
+
     for (let key in squareTexts) {
         let [i, j] = key.split(',').map(Number);
-        
-        // Convert to centered coordinates
         let x = i - centerI;
         let y = j - centerJ;
-        
-        // Extract class from the text (e.g., "0 (95.2%)" -> "0")
         let detectedClass = squareTexts[key].split(' ')[0];
-        
-        // Format based on orientation
-        if (orientation === 'ground') {
-            // Format: x,0,y,class or x 0 y class
-            output += `${x}${separator}0${separator}${y}${separator}${detectedClass}\n`;
+
+        if (format === 'rotationinfo') {
+            if (orientation === 'ground') {
+                output += `formation.add(new RotationInfo(${x}, 0, ${y}, ${detectedClass}, false));\n`;
+            } else {
+                output += `formation.add(new RotationInfo(${x}, ${y}, 0, ${detectedClass}, false));\n`;
+            }
         } else {
-            // Format: x,y,0,class or x y 0 class
-            output += `${x}${separator}${y}${separator}0${separator}${detectedClass}\n`;
+            const separator = format === 'spaced' ? ' ' : ',';
+            if (orientation === 'ground') {
+                output += `${x}${separator}0${separator}${y}${separator}${detectedClass}\n`;
+            } else {
+                output += `${x}${separator}${y}${separator}0${separator}${detectedClass}\n`;
+            }
         }
     }
-    
-    // Display the output in a code block
-    const title = `${orientation.charAt(0).toUpperCase() + orientation.slice(1)} ${spaced ? 'Spaced' : 'Comma'} Data`;
-    displayGeneratedOutput(output, title);
-    
+
+    const titleMap = {
+        comma: `${orientation.charAt(0).toUpperCase() + orientation.slice(1)} Comma Data`,
+        spaced: `${orientation.charAt(0).toUpperCase() + orientation.slice(1)} Spaced Data`,
+        rotationinfo: `${orientation.charAt(0).toUpperCase() + orientation.slice(1)} RotationInfo Format`
+    };
+
+    displayGeneratedOutput(output, titleMap[format]);
     console.log('Generated data:', output);
 }
 
