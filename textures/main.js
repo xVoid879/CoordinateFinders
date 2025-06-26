@@ -327,11 +327,11 @@ function handleKeyDown(e) {
     if (!imgElement || lastSelectedPoint === -1) return; // Do nothing if no image or no point selected
     let [x, y] = points[lastSelectedPoint];
     let changed = false;
-    // Move selected point using arrow keys or WASD
-    if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') { y -= pointMoveStep; changed = true; }
-    if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') { y += pointMoveStep; changed = true; }
-    if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') { x -= pointMoveStep; changed = true; }
-    if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') { x += pointMoveStep; changed = true; }
+    // Move selected point using WASD
+    if (e.key === 'w' || e.key === 'W') { y -= pointMoveStep; changed = true; }
+    if (e.key === 's' || e.key === 'S') { y += pointMoveStep; changed = true; }
+    if (e.key === 'a' || e.key === 'A') { x -= pointMoveStep; changed = true; }
+    if (e.key === 'd' || e.key === 'D') { x += pointMoveStep; changed = true; }
     
     // Select point using number keys (1-4)
     if (e.key >= '1' && e.key <= '4') {
@@ -616,15 +616,15 @@ function drawGridOverlay() {
         let centerX = tlx + squareSize / 2;
         let centerY = tly + squareSize / 2;
         
-        // Draw detection info (e.g., "0 (95.2%)")
-        ctx.font = '18px Arial';
+        // Draw detection info
+        ctx.font = '26px Arial';
         ctx.fillStyle = 'yellow';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(squareTexts[key], centerX, centerY - 10);
         
-        // Draw grid position (e.g., "(0,0)") underneath
-        ctx.font = '14px Arial';
+        // Draw grid position underneath
+        ctx.font = '24px Arial';
         ctx.fillStyle = 'cyan';
         ctx.fillText(`(${i},${j})`, centerX, centerY + 10);
     }
@@ -721,8 +721,7 @@ function getCoordinateInputs() {
     return { relativeX, relativeY, relativeZ };
 }
 
-function generateRaw(orientation = 'wall', type = 'raw', relativeX, relativeY, relativeZ) {
-    // Check if any squares have been detected and labeled
+function generateRaw(orientation = 'wall', type = 'raw',relativeX, relativeY, relativeZ) {
     if (!squareDst || Object.keys(squareTexts).length === 0) {
         showMessageBox('No detected squares found. Please click on some squares in the warped output to run detection first.');
         return;
@@ -768,8 +767,8 @@ function generateRaw(orientation = 'wall', type = 'raw', relativeX, relativeY, r
             isWallForRotationInfo = false;
         } else {
             // General case: use centered coordinates relative to the detected grid's center
-            let x_centered = i - centerI;
-            let y_centered = j - centerJ;
+            let x_centered = i
+            let y_centered = j
             let fixed_offset_dimension = 0; // The fixed offset for the third dimension (wall's Z or ground's Y)
 
             if (orientation === 'ground') {
@@ -791,7 +790,7 @@ function generateRaw(orientation = 'wall', type = 'raw', relativeX, relativeY, r
         finalCoordZ += relativeZ;
 
         // Construct the output string based on the selected generation type
-        if (type === 'raw' || type === 'spaced') {
+        if (type === 'raw') {
             output += `${finalCoordX}${separator}${finalCoordY}${separator}${finalCoordZ}${separator}${detectedClass}\n`;
         } else if (type === 'rotationinfo') {
             output += `formation.add(new RotationInfo(${finalCoordX}, ${finalCoordY}, ${finalCoordZ}, ${detectedClass}, ${isWallForRotationInfo}));\n`;
