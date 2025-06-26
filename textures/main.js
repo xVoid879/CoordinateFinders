@@ -525,14 +525,14 @@ function drawGridOverlay() {
         let centerY = tly + squareSize / 2;
         
         // Draw detection info
-        ctx.font = '18px Arial';
+        ctx.font = '24px Arial';
         ctx.fillStyle = 'yellow';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(squareTexts[key], centerX, centerY - 10);
         
         // Draw grid position underneath
-        ctx.font = '14px Arial';
+        ctx.font = '22px Arial';
         ctx.fillStyle = 'cyan';
         ctx.fillText(`(${i},${j})`, centerX, centerY + 10);
     }
@@ -629,7 +629,7 @@ function getCoordinateInputs() {
     return { relativeX, relativeY, relativeZ };
 }
 
-function generateRaw(orientation = 'wall', type = 'raw',relativeX, relativeY, relativeZ,) {
+function generateRaw(orientation = 'wall', type = 'raw',relativeX, relativeY, relativeZ) {
     if (!squareDst || Object.keys(squareTexts).length === 0) {
         alert('No detected squares found. Please run detection on some squares first.');
         return;
