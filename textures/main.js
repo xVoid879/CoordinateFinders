@@ -655,39 +655,3 @@ function generateRaw(orientation = 'wall', format = 'comma') {
     displayGeneratedOutput(output, titleMap[format]);
     console.log('Generated data:', output);
 }
-
-function displayGeneratedOutput(output, title) {
-    // Create or update the output display
-    let outputDisplay = document.getElementById('generatedOutput');
-    if (!outputDisplay) {
-        outputDisplay = document.createElement('div');
-        outputDisplay.id = 'generatedOutput';
-        outputDisplay.className = 'generated-output';
-        document.querySelector('.generate-section').appendChild(outputDisplay);
-    }
-    
-    outputDisplay.innerHTML = `
-        <h4>${title}</h4>
-        <div class="code-block">
-            <pre><code>${output}</code></pre>
-        </div>
-        <button onclick="downloadGeneratedOutput('${output.replace(/\n/g, '\\n')}', 'detected_squares.txt')" class="download-btn">
-            Download as .txt
-        </button>
-    `;
-}
-
-function downloadGeneratedOutput(content, filename) {
-    const blob = new Blob([content], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-}
-
-
-
