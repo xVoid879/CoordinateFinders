@@ -22,9 +22,19 @@ let cleanWarpedCanvas = null; // For storing the warped image before grid lines
 let tfModel = null;
 let classNames = ['0', '1', '2', '3']; // Update if your model uses different class names
 async function loadModel() {
-    tfModel = await tf.loadLayersModel('model/model.json');
-    console.log('Model loaded!');
+    try {
+        // Adjust the model path if it's not directly in the root
+        tfModel = await tf.loadLayersModel('model/model.json');
+        console.log('Model loaded!');
+    } catch (error) {
+        console.error('Failed to load TensorFlow.js model:', error);
+        // Optionally display a message to the user that the model failed to load
+        // Using a custom modal/message box instead of alert()
+        showMessageBox('Warning: AI model could not be loaded. Prediction functionality will be limited.');
+    }
 }
+// Load the model once OpenCV.js is ready, or on app init
+// For simplicity, calling here directly. In a real app, you might wait for OpenCV.js `onRuntimeInitialized`.
 loadModel();
 
 // Magnified view variables
@@ -42,7 +52,7 @@ function appInit() {
     magnifiedCtx = magnifiedCanvas.getContext('2d');
     magnifiedView = document.getElementById('magnifiedView');
     magnifiedCanvas.width = 180;
-    magnifiedCanvas.height = 120;
+    magnifiedCanvas.height = 120; // Adjusted height for image
 
     document.getElementById('imageUpload').addEventListener('change', handleImageUpload);
     document.getElementById('generateBtn').addEventListener('click', handleGenerate);
@@ -55,8 +65,42 @@ function appInit() {
     // Add mouse move handler for magnified view updates
     inputCanvas.addEventListener('mousemove', handleInputMouseMove);
     
+    // Add event listener for output canvas clicks
+    outputCanvas.addEventListener('mousedown', handleOutputCanvasClick);
+    
     // Load saved image and points on startup
     loadSavedImage();
+    // Prevent keydown events from propagating from coordinate input fields
+    preventInputFieldKeyPropagation();
+}
+
+// Custom message box function (replaces alert())
+function showMessageBox(message) {
+    const messageBox = document.createElement('div');
+    messageBox.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+    messageBox.innerHTML = `
+        <div class="bg-gray-800 p-6 rounded-lg shadow-lg text-white max-w-sm text-center">
+            <p class="mb-4">${message}</p>
+            <button onclick="this.parentNode.parentNode.remove()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                OK
+            </button>
+        </div>
+    `;
+    document.body.appendChild(messageBox);
+}
+
+// Ensure OpenCV.js is loaded before initializing the app
+if (typeof cv !== 'undefined' && cv.onRuntimeInitialized) {
+    cv.onRuntimeInitialized = () => {
+        appInit();
+    };
+} else if (typeof cv !== 'undefined') {
+    // Fallback for cases where onRuntimeInitialized might already be called
+    appInit();
+} else {
+    console.error("OpenCV.js not found or not initialized.");
+    // You might want to display an error message to the user here.
+    showMessageBox("Error: OpenCV.js is not loaded. Image processing features will not work.");
 }
 
 function handleImageUpload(e) {
@@ -79,8 +123,8 @@ function setupImage() {
     // Set canvas size to image size
     inputCanvas.width = imgElement.width;
     inputCanvas.height = imgElement.height;
-    outputCanvas.width = imgElement.width + 100;
-    outputCanvas.height = imgElement.height + 100;
+    outputCanvas.width = imgElement.width + 100; // Add padding for warped image
+    outputCanvas.height = imgElement.height + 100; // Add padding for warped image
 
     // Create OpenCV Mat from image
     if (srcMat) srcMat.delete();
@@ -132,6 +176,7 @@ function setupImage() {
 }
 
 function getDefaultPoints() {
+    // Default points are set 30px from each corner of the image
     return [
         [30, 30],
         [imgElement.width - 30, 30],
@@ -141,68 +186,69 @@ function getDefaultPoints() {
 }
 
 function savePoints() {
+    // Save current points to localStorage if all 4 points are set
     if (points.length === 4) {
         localStorage.setItem('blockDetector_points', JSON.stringify(points));
     }
 }
 
 function drawInput() {
-    // Draw image
+    // Clear input canvas and draw the original image
     inputCtx.clearRect(0, 0, inputCanvas.width, inputCanvas.height);
     inputCtx.drawImage(imgElement, 0, 0);
-    // Draw lines
+
+    // Draw lines connecting the 4 points
     inputCtx.strokeStyle = 'lime';
     inputCtx.lineWidth = lineThickness;
     inputCtx.beginPath();
     for (let i = 0; i < points.length; ++i) {
         let p1 = points[i];
         let p2 = points[(i + 1) % points.length];
-        if (i < points.length - 1) {
-            inputCtx.moveTo(p1[0], p1[1]);
-            inputCtx.lineTo(p2[0], p2[1]);
-        }
-    }
-    if (points.length === 4) {
-        inputCtx.moveTo(points[3][0], points[3][1]);
-        inputCtx.lineTo(points[0][0], points[0][1]);
+        // Connect points (p1 to p2, p2 to p3, p3 to p4, p4 to p1)
+        inputCtx.moveTo(p1[0], p1[1]);
+        inputCtx.lineTo(p2[0], p2[1]);
     }
     inputCtx.stroke();
-    // Draw points
+
+    // Draw points as circles with labels
     for (let i = 0; i < points.length; ++i) {
         let [x, y] = points[i];
         inputCtx.beginPath();
+        // Highlight the last selected/dragged point
         inputCtx.arc(x, y, pointSize + (i === lastSelectedPoint ? 2 : 0), 0, 2 * Math.PI);
         inputCtx.fillStyle = i === lastSelectedPoint ? 'red' : 'lime';
         inputCtx.fill();
         inputCtx.font = '14px Arial';
         inputCtx.fillStyle = 'white';
+        // Draw point number
         inputCtx.fillText((i + 1).toString(), x + 8, y + 8);
+        // Draw a star next to the selected point
         if (i === lastSelectedPoint) {
             inputCtx.fillText('*', x - 14, y - 10);
         }
     }
-    // Save points after drawing
+    // Save points state
+    savePoints();
     
-    // Update magnified view to focus on selected point
+    // Update magnified view to focus on selected point if one is active
     if (lastSelectedPoint >= 0 && lastSelectedPoint < points.length) {
         let [x, y] = points[lastSelectedPoint];
         updateMagnifiedView(x, y);
     }
-    
-    savePoints();
 }
 
 function handleMouseDown(e) {
-    if (!imgElement) return;
+    if (!imgElement) return; // Do nothing if no image is loaded
     const rect = inputCanvas.getBoundingClientRect();
+    // Calculate scale to get true pixel coordinates on the canvas
     const scaleX = inputCanvas.width / rect.width;
     const scaleY = inputCanvas.height / rect.height;
     const x = (e.clientX - rect.left) * scaleX;
     const y = (e.clientY - rect.top) * scaleY;
 
-    // Check if a number key (1-4) is being held
+    // Check if a number key (1-4) is being held for direct point assignment
     if (e.shiftKey || e.ctrlKey || e.altKey) return; // Ignore modifier keys
-    const heldKey = Object.keys(keyStates).find(key => key >= '1' && key <= '4');
+    const heldKey = Object.keys(keyStates).find(key => key >= '1' && key <= '4' && keyStates[key]); // Check if key is actually held
     if (heldKey) {
         const pointIndex = parseInt(heldKey) - 1;
         if (pointIndex < points.length) {
@@ -210,14 +256,14 @@ function handleMouseDown(e) {
             lastSelectedPoint = pointIndex;
             drawInput();
             if (points.length === 4) {
-                applyPerspectiveTransform();
+                applyPerspectiveTransform(); // Update transform immediately if all 4 points are set
             }
         }
         return;
     }
 
-    // Debug: draw a crosshair at the click location
-    drawInput();
+    // Debug: draw a crosshair at the click location (temporary visual feedback)
+    drawInput(); // Redraw to clear previous crosshair
     inputCtx.save();
     inputCtx.strokeStyle = 'magenta';
     inputCtx.lineWidth = 2;
@@ -230,89 +276,99 @@ function handleMouseDown(e) {
     inputCtx.stroke();
     inputCtx.restore();
 
-    // Check if clicking on a point (use larger, more precise hitbox)
+    // Check if clicking on an existing point to drag it
     for (let i = 0; i < points.length; ++i) {
         let [px, py] = points[i];
-        if (Math.hypot(x - px, y - py) <= pointSize + 2) // match drawn point size
+        if (Math.hypot(x - px, y - py) <= pointSize + 2) // Check within point's visual size
         {
             lastSelectedPoint = i;
-            drawInput();
+            drawInput(); // Redraw to show selected point highlight
             dragging = true;
             dragPointIndex = i;
-            return;
+            return; // Stop after finding a point to drag
         }
     }
 
-    // Add new point if less than 4
+    // If not dragging an existing point and less than 4 points exist, add a new point
     if (points.length < 4) {
         points.push([x, y]);
-        lastSelectedPoint = points.length - 1;
+        lastSelectedPoint = points.length - 1; // Select the newly added point
         drawInput();
         if (points.length === 4) {
-            applyPerspectiveTransform();
+            applyPerspectiveTransform(); // Apply transform if all 4 points are now set
         }
     }
 }
 
 function handleMouseMove(e) {
-    if (!imgElement || !dragging || dragPointIndex === -1) return;
+    if (!imgElement || !dragging || dragPointIndex === -1) return; // Only process if dragging
     const rect = inputCanvas.getBoundingClientRect();
     const scaleX = inputCanvas.width / rect.width;
     const scaleY = inputCanvas.height / rect.height;
     const x = (e.clientX - rect.left) * scaleX;
     const y = (e.clientY - rect.top) * scaleY;
+    // Update the position of the dragged point
     points[dragPointIndex] = [x, y];
-    drawInput();
-    // Do NOT update perspective transform here (wait for mouse up)
+    drawInput(); // Redraw to show updated point position
+    // Do NOT update perspective transform here (wait for mouse up for performance)
 }
 
 function handleMouseUp(e) {
-    dragging = false;
-    if (dragPointIndex !== -1) lastSelectedPoint = dragPointIndex;
-    // Only update perspective transform after drag is finished
+    dragging = false; // End dragging
+    if (dragPointIndex !== -1) lastSelectedPoint = dragPointIndex; // Keep the dragged point selected
+    // Only update perspective transform after drag is finished to avoid continuous recalculations
     if (points.length === 4) {
         applyPerspectiveTransform();
     }
-    dragPointIndex = -1;
+    dragPointIndex = -1; // Reset drag index
 }
 
 function handleKeyDown(e) {
-    if (!imgElement || lastSelectedPoint === -1) return;
+    if (!imgElement || lastSelectedPoint === -1) return; // Do nothing if no image or no point selected
     let [x, y] = points[lastSelectedPoint];
     let changed = false;
+    // Move selected point using arrow keys or WASD
     if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') { y -= pointMoveStep; changed = true; }
     if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') { y += pointMoveStep; changed = true; }
     if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') { x -= pointMoveStep; changed = true; }
     if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') { x += pointMoveStep; changed = true; }
+    
+    // Select point using number keys (1-4)
     if (e.key >= '1' && e.key <= '4') {
         let idx = parseInt(e.key) - 1;
         if (idx < points.length) {
             lastSelectedPoint = idx;
-            drawInput();
+            drawInput(); // Redraw to highlight new selected point
             // Update magnified view to focus on newly selected point
             let [newX, newY] = points[lastSelectedPoint];
             updateMagnifiedView(newX, newY);
         }
-        return;
+        return; // Do not fall through to other key handlers if a number key was pressed
     }
+    
+    // Adjust point movement step size
     if (e.key === '+' || e.key === '=') { pointMoveStep = Math.min(10, pointMoveStep + 1); return; }
     if (e.key === '-') { pointMoveStep = Math.max(1, pointMoveStep - 1); return; }
+    
+    // Reset points to default positions
     if (e.key === 'r' || e.key === 'R') { resetPoints(); return; }
+    
     if (changed) {
+        // Apply new position to the selected point
         points[lastSelectedPoint] = [x, y];
-        drawInput();
+        drawInput(); // Redraw input canvas
         if (points.length === 4) {
-            applyPerspectiveTransform();
+            applyPerspectiveTransform(); // Re-apply transform if all points are set
         }
     }
 }
 
 function resetPoints() {
-    if (!imgElement) return;
-    points = getDefaultPoints();
-    lastSelectedPoint = 0;
-    drawInput();
-    applyPerspectiveTransform();
+    if (!imgElement) return; // Do nothing if no image is loaded
+    points = getDefaultPoints(); // Get default initial points
+    lastSelectedPoint = 0; // Select the first point
+    drawInput(); // Redraw input canvas
+    applyPerspectiveTransform(); // Re-apply transform
 }
 
 function loadSavedImage() {
@@ -320,7 +376,7 @@ function loadSavedImage() {
     if (savedImage) {
         imgElement = new window.Image();
         imgElement.onload = function() {
-            setupImage();
+            setupImage(); // Setup canvas and points once image is loaded
         };
         imgElement.src = savedImage;
     }
@@ -328,11 +384,12 @@ function loadSavedImage() {
 
 function applyPerspectiveTransform() {
     if (!imgElement || points.length !== 4) {
+        // Clear output canvas if no image or not enough points
         outputCtx.clearRect(0, 0, outputCanvas.width, outputCanvas.height);
         cleanWarpedCanvas = null;
         return;
     }
-    // Calculate center and average side
+    // Calculate center and average side length of the quadrilateral defined by points
     let cx = (points[0][0] + points[1][0] + points[2][0] + points[3][0]) / 4;
     let cy = (points[0][1] + points[1][1] + points[2][1] + points[3][1]) / 4;
     let sideLengths = [
@@ -343,80 +400,84 @@ function applyPerspectiveTransform() {
     ];
     let avgSide = sideLengths.reduce((a, b) => a + b, 0) / 4;
     let halfSide = avgSide / 2;
-    let padding = 50;
+    let padding = 50; // Padding around the warped image in the output canvas
+
+    // Define destination points for the perspective transform (a perfect square)
     let dst = [
-        [cx + padding - halfSide, cy + padding - halfSide],
-        [cx + padding + halfSide, cy + padding - halfSide],
-        [cx + padding + halfSide, cy + padding + halfSide],
-        [cx + padding - halfSide, cy + padding + halfSide]
+        [cx + padding - halfSide, cy + padding - halfSide], // Top-left
+        [cx + padding + halfSide, cy + padding - halfSide], // Top-right
+        [cx + padding + halfSide, cy + padding + halfSide], // Bottom-right
+        [cx + padding - halfSide, cy + padding + halfSide]  // Bottom-left
     ];
-    squareDst = dst;
-    // Perspective transform
-    let srcTri = cv.matFromArray(4, 1, cv.CV_32FC2, points.flat());
-    let dstTri = cv.matFromArray(4, 1, cv.CV_32FC2, dst.flat());
-    let dsize = new cv.Size(imgElement.width + 2 * padding, imgElement.height + 2 * padding);
-    if (warpedMat) warpedMat.delete();
-    warpedMat = new cv.Mat();
-    let M = cv.getPerspectiveTransform(srcTri, dstTri);
-    cv.warpPerspective(srcMat, warpedMat, M, dsize, cv.INTER_LINEAR, cv.BORDER_CONSTANT, new cv.Scalar());
-    srcTri.delete(); dstTri.delete(); M.delete();
-    // Draw to output canvas
+    squareDst = dst; // Store destination points for grid drawing
+
+    // Perform perspective transform using OpenCV.js
+    let srcTri = cv.matFromArray(4, 1, cv.CV_32FC2, points.flat()); // Source points from user input
+    let dstTri = cv.matFromArray(4, 1, cv.CV_32FC2, dst.flat());   // Destination points (perfect square)
+    let dsize = new cv.Size(imgElement.width + 2 * padding, imgElement.height + 2 * padding); // Size of the output canvas
+    if (warpedMat) warpedMat.delete(); // Release previous warped matrix if exists
+    warpedMat = new cv.Mat(); // Create new matrix for warped image
+    let M = cv.getPerspectiveTransform(srcTri, dstTri); // Get perspective transformation matrix
+    cv.warpPerspective(srcMat, warpedMat, M, dsize, cv.INTER_LINEAR, cv.BORDER_CONSTANT, new cv.Scalar()); // Apply transform
+    
+    // Release memory
+    srcTri.delete();
+    dstTri.delete();
+    M.delete();
+
+    // Draw the warped image to the output canvas
     cv.imshow(outputCanvas, warpedMat);
-    // Save a clean copy of the warped image before drawing grid
+
+    // Save a clean copy of the warped image *before* drawing grid lines
     cleanWarpedCanvas = document.createElement('canvas');
     cleanWarpedCanvas.width = outputCanvas.width;
     cleanWarpedCanvas.height = outputCanvas.height;
     let cleanCtx = cleanWarpedCanvas.getContext('2d');
     cleanCtx.drawImage(outputCanvas, 0, 0);
-    // Draw grid overlay
+
+    // Draw the grid overlay on the output canvas
     drawGridOverlay();
 }
 
-// Add event listener for output canvas clicks
-if (typeof window !== 'undefined') {
-    window.addEventListener('DOMContentLoaded', () => {
-        const outCanvas = document.getElementById('outputCanvas');
-        if (outCanvas) {
-            outCanvas.addEventListener('mousedown', handleOutputCanvasClick);
-        }
-    });
-}
-
-let squareTexts = {}; // {squareIndex: text}
+let squareTexts = {}; // Stores detection results for each square: { 'i,j': 'class (confidence%)' }
 
 function preprocessCanvasForModel(canvas) {
-    // Resize to 64x64
+    // Create a temporary canvas and resize the cropped square to 64x64 pixels
     let temp = document.createElement('canvas');
     temp.width = 64;
     temp.height = 64;
     let ctx = temp.getContext('2d');
     ctx.drawImage(canvas, 0, 0, 64, 64);
+
     // Get image data and convert to grayscale
     let imgData = ctx.getImageData(0, 0, 64, 64);
     let data = imgData.data;
     let gray = [];
     for (let i = 0; i < data.length; i += 4) {
-        // Grayscale: 0.299*R + 0.587*G + 0.114*B
+        // Grayscale conversion: 0.299*R + 0.587*G + 0.114*B
         let v = 0.299 * data[i] + 0.587 * data[i+1] + 0.114 * data[i+2];
-        gray.push(v); // Keep raw pixel values [0,255] - let model's Rescaling layer handle normalization
+        gray.push(v); // Store raw pixel values [0,255]. Model's Rescaling layer will handle normalization.
     }
-    // Convert to tensor: [1, 64, 64, 1]
+    // Convert the grayscale pixel data into a TensorFlow.js tensor with shape [1, 64, 64, 1]
     let tensor = tf.tensor(gray, [64, 64, 1]).expandDims(0);
     return tensor;
 }
 
-// --- Async runOnSquare for AI prediction ---
+// Function to run AI prediction on a given cropped canvas (grid square)
 async function runOnSquare(croppedCanvas, info) {
-    if (!tfModel) return 'Loading...';
-    
+    if (!tfModel) return 'Model Loading...'; // Indicate model is not ready
+
     console.log(`=== Debug: Processing square (${info.i}, ${info.j}) ===`);
     
+    // Preprocess the cropped image for the model
     let inputTensor = preprocessCanvasForModel(croppedCanvas);
     
+    // Make prediction using the loaded TensorFlow.js model
     let prediction = tfModel.predict(inputTensor);
-    let data = await prediction.data();
+    let data = await prediction.data(); // Get prediction probabilities
     console.log('Raw prediction data:', Array.from(data));
     
+    // Determine the predicted class (index of highest probability) and its confidence
     let predictedClass = data.indexOf(Math.max(...data));
     let confidence = Math.max(...data);
     
@@ -428,84 +489,112 @@ async function runOnSquare(croppedCanvas, info) {
     console.log(`Confidence: ${(confidence * 100).toFixed(2)}%`);
     console.log('=== End Debug ===');
     
+    // Dispose tensors to free up memory
     inputTensor.dispose();
     prediction.dispose();
+    
+    // Return formatted result string
     return `${classNames[predictedClass]} (${(confidence*100).toFixed(1)}%)`;
 }
 
-// --- Update click handler to support async ---
+// Handle clicks on the output canvas to trigger AI prediction for a square
 async function handleOutputCanvasClick(e) {
     // Only respond to left mouse button (button 0)
     if (e.button !== 0) return;
 
-    if (!cleanWarpedCanvas || !squareDst) return;
+    if (!cleanWarpedCanvas || !squareDst) return; // Ensure warped image and square data exist
     const rect = outputCanvas.getBoundingClientRect();
+    // Calculate click coordinates relative to the canvas's true pixel size
     const scaleX = outputCanvas.width / rect.width;
     const scaleY = outputCanvas.height / rect.height;
     const x = (e.clientX - rect.left) * scaleX;
     const y = (e.clientY - rect.top) * scaleY;
 
-    // Find which grid square was clicked
+    // Determine which grid square was clicked
     let squarePoints = squareDst.map(pt => [Math.round(pt[0]), Math.round(pt[1])]);
+    // Calculate the size of one grid square based on the warped square's side length
     let avgSide = Math.hypot(squarePoints[1][0] - squarePoints[0][0], squarePoints[1][1] - squarePoints[0][1]);
     let sSize = Math.round(avgSide);
+    
+    // Calculate the top-left origin of the main warped square
     let gridOriginX = squarePoints[0][0];
     let gridOriginY = squarePoints[0][1];
+    
+    // Calculate grid indices (i, j) of the clicked square
     let i = Math.floor((x - gridOriginX) / sSize);
     let j = Math.floor((y - gridOriginY) / sSize);
+    
+    // Calculate top-left and bottom-right pixel coordinates of the clicked grid square
     let tlx = gridOriginX + i * sSize;
     let tly = gridOriginY + j * sSize;
     let brx = tlx + sSize;
     let bry = tly + sSize;
 
+    // Check if the calculated square coordinates are within the canvas bounds
     if (tlx < 0 || tly < 0 || brx > outputCanvas.width || bry > outputCanvas.height) return;
 
+    // Create a temporary canvas to crop the selected grid square
     let cropCanvas = document.createElement('canvas');
     cropCanvas.width = sSize;
     cropCanvas.height = sSize;
     let cropCtx = cropCanvas.getContext('2d');
+    // Draw the specific portion of the clean warped image onto the crop canvas
     cropCtx.drawImage(cleanWarpedCanvas, tlx, tly, sSize, sSize, 0, 0, sSize, sSize);
 
-    // Show loading text immediately (replace old text if it exists)
+    // Show loading text immediately on the clicked square
     let squareKey = `${i},${j}`;
     squareTexts[squareKey] = '...';
-    drawGridOverlay();
+    drawGridOverlay(); // Redraw grid with loading text
 
-    // Run AI prediction (replace old prediction with the new one)
+    // Run AI prediction and update the square's text with the result
     let resultText = await runOnSquare(cropCanvas, { i, j, x, y });
     squareTexts[squareKey] = resultText;
-    drawGridOverlay();
+    drawGridOverlay(); // Redraw grid with prediction result
 
-    // Redraw input canvas to refresh the display
+    // Redraw input canvas (not strictly necessary for output canvas click, but good for consistency)
     drawInput();
 }
 
 function drawGridOverlay() {
-    if (!warpedMat) return;
-    // Calculate grid based on main square
+    if (!warpedMat) return; // Do nothing if no warped image
+    
     let ctx = outputCtx;
-    ctx.save();
+    ctx.save(); // Save current canvas state
+    
+    // Reset output canvas to the clean warped image before drawing new grid/text
+    if (cleanWarpedCanvas) {
+        ctx.clearRect(0, 0, outputCanvas.width, outputCanvas.height);
+        ctx.drawImage(cleanWarpedCanvas, 0, 0);
+    }
+
     ctx.lineWidth = 1;
-    ctx.strokeStyle = 'lime';
+    ctx.strokeStyle = 'lime'; // Grid line color
+
     let squarePoints = squareDst.map(pt => [Math.round(pt[0]), Math.round(pt[1])]);
+    // Calculate average side length of the warped square to determine grid cell size
     let avgSide = Math.hypot(squarePoints[1][0] - squarePoints[0][0], squarePoints[1][1] - squarePoints[0][1]);
-    squareSize = Math.round(avgSide);
-    let w = outputCanvas.width, h = outputCanvas.height;
-    // Horizontal lines
+    squareSize = Math.round(avgSide); // The size of each square in the grid
+    
+    let w = outputCanvas.width;
+    let h = outputCanvas.height;
+
+    // Draw horizontal grid lines extending from the main square
     for (let y = squarePoints[0][1]; y < h; y += squareSize) {
         ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
     }
     for (let y = squarePoints[0][1]; y > 0; y -= squareSize) {
         ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
     }
-    // Vertical lines
+
+    // Draw vertical grid lines extending from the main square
     for (let x = squarePoints[0][0]; x > 0; x -= squareSize) {
         ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
     }
     for (let x = squarePoints[1][0]; x < w; x += squareSize) {
         ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
     }
-    // Draw main square
+
+    // Draw the main warped square outline in red
     ctx.strokeStyle = 'red';
     ctx.lineWidth = 2;
     ctx.beginPath();
@@ -516,27 +605,30 @@ function drawGridOverlay() {
         ctx.lineTo(p2[0], p2[1]);
     }
     ctx.stroke();
-    // Draw text on selected squares
+
+    // Draw text (detection info and grid position) on each detected square
     for (let key in squareTexts) {
-        let [i, j] = key.split(',').map(Number);
+        let [i, j] = key.split(',').map(Number); // Parse grid indices from key
+        
+        // Calculate the center of the current grid square
         let tlx = squarePoints[0][0] + i * squareSize;
         let tly = squarePoints[0][1] + j * squareSize;
         let centerX = tlx + squareSize / 2;
         let centerY = tly + squareSize / 2;
         
-        // Draw detection info
+        // Draw detection info (e.g., "0 (95.2%)")
         ctx.font = '18px Arial';
         ctx.fillStyle = 'yellow';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(squareTexts[key], centerX, centerY - 10);
         
-        // Draw grid position underneath
+        // Draw grid position (e.g., "(0,0)") underneath
         ctx.font = '14px Arial';
         ctx.fillStyle = 'cyan';
         ctx.fillText(`(${i},${j})`, centerX, centerY + 10);
     }
-    ctx.restore();
+    ctx.restore(); // Restore saved canvas state
 }
 
 function showMagnifiedView(x, y) {
@@ -554,9 +646,9 @@ function updateMagnifiedView(x, y) {
     if (!imgElement || !magnifiedCanvas) return;
     
     const zoom = 4; // 4x magnification
-    const size = 45; // Size of the area to capture (45px * 4 = 180px canvas width)
+    const size = 45; // Size of the area to capture (45px source * 4 = 180px magnified canvas width)
     
-    // Calculate the area to capture from the input canvas
+    // Calculate the area to capture from the input canvas, clamping to image bounds
     const sourceX = Math.max(0, Math.min(x - size/2, inputCanvas.width - size));
     const sourceY = Math.max(0, Math.min(y - size/2, inputCanvas.height - size));
     
@@ -572,14 +664,14 @@ function updateMagnifiedView(x, y) {
     // Clear the magnified canvas
     magnifiedCtx.clearRect(0, 0, magnifiedCanvas.width, magnifiedCanvas.height);
     
-    // Draw the magnified portion from the clean image
+    // Draw the magnified portion from the clean image onto the magnified canvas
     magnifiedCtx.drawImage(
         tempCanvas, 
-        sourceX, sourceY, size, size,
-        0, 0, magnifiedCanvas.width, magnifiedCanvas.height
+        sourceX, sourceY, size, size, // Source rectangle
+        0, 0, magnifiedCanvas.width, magnifiedCanvas.height // Destination rectangle
     );
     
-    // Draw a crosshair at the center
+    // Draw a red crosshair at the center of the magnified view
     magnifiedCtx.strokeStyle = 'red';
     magnifiedCtx.lineWidth = 2;
     magnifiedCtx.beginPath();
@@ -596,7 +688,7 @@ function updateMagnifiedView(x, y) {
 function handleInputMouseMove(e) {
     if (!imgElement) return;
     
-    // Only update magnified view if no point is selected or if we're dragging
+    // Only update magnified view if no point is currently selected or if a point is being dragged
     if (lastSelectedPoint === -1 || dragging) {
         const rect = inputCanvas.getBoundingClientRect();
         const scaleX = inputCanvas.width / rect.width;
@@ -604,7 +696,7 @@ function handleInputMouseMove(e) {
         const x = (e.clientX - rect.left) * scaleX;
         const y = (e.clientY - rect.top) * scaleY;
         
-        // Update magnified view with mouse position
+        // Update magnified view with current mouse position
         updateMagnifiedView(x, y);
     }
 }
@@ -613,14 +705,14 @@ function handleGenerate() {
     const generationType = document.getElementById('generationType').value;
     const orientation = document.getElementById('orientation').value;
 
-    // Retrieve coordinate inputs
+    // Retrieve coordinate inputs for relative offsets
     const { relativeX, relativeY, relativeZ } = getCoordinateInputs();
 
-    // Pass generationType, orientation, and coordinate inputs as arguments
+    // Pass generationType, orientation, and coordinate inputs as arguments to generateRaw
     generateRaw(orientation, generationType, relativeX, relativeY, relativeZ);
 }
 
-// Function to retrieve coordinate inputs
+// Function to retrieve numerical values from relative coordinate input fields
 function getCoordinateInputs() {
     const relativeX = parseFloat(document.getElementById('relativeX').value) || 0;
     const relativeY = parseFloat(document.getElementById('relativeY').value) || 0;
@@ -629,16 +721,17 @@ function getCoordinateInputs() {
     return { relativeX, relativeY, relativeZ };
 }
 
-function generateRaw(orientation = 'wall', type = 'raw',relativeX, relativeY, relativeZ,) {
+function generateRaw(orientation = 'wall', type = 'raw', relativeX, relativeY, relativeZ) {
+    // Check if any squares have been detected and labeled
     if (!squareDst || Object.keys(squareTexts).length === 0) {
-        alert('No detected squares found. Please run detection on some squares first.');
+        showMessageBox('No detected squares found. Please click on some squares in the warped output to run detection first.');
         return;
     }
 
-    let output = '';
-    const separator = type === 'spaced' ? ' ' : ','; // Use space for 'spaced', comma otherwise
+    // Determine separator based on output type
+    const separator = type === 'spaced' ? ' ' : ',';
 
-    // Find the range of grid coordinates to center around (0,0)
+    // Calculate min/max grid indices to determine the extent of the detected area
     let minI = Infinity, maxI = -Infinity;
     let minJ = Infinity, maxJ = -Infinity;
 
@@ -650,40 +743,62 @@ function generateRaw(orientation = 'wall', type = 'raw',relativeX, relativeY, re
         maxJ = Math.max(maxJ, j);
     }
 
-    // Calculate center offset to make the grid centered around (0,0)
+    // Calculate the center of the detected grid for centering logic
     let centerI = Math.floor((minI + maxI) / 2);
     let centerJ = Math.floor((minJ + maxJ) / 2);
 
-    // Process each detected square
+    let output = ''; // String to build the final generated output
+
+    // Iterate through each detected square and format its data
     for (let key in squareTexts) {
-        let [i, j] = key.split(',').map(Number);
+        let [i, j] = key.split(',').map(Number); // Current square's grid indices
+        let detectedClass = squareTexts[key].split(' ')[0]; // Extract class from "Class (Confidence%)"
 
-        // Convert to centered coordinates
-        let x = i - centerI;
-        let y = j - centerJ;
-        let offset = 0; // Default offset for ground orientation change to individual square
-        // Extract class from the text (e.g., "0 (95.2%)" -> "0")
-        let detectedClass = squareTexts[key].split(' ')[0];
+        let finalCoordX; // Final X coordinate for output
+        let finalCoordY; // Final Y coordinate for output
+        let finalCoordZ; // Final Z coordinate for output
+        let isWallForRotationInfo; // Boolean for RotationInfo constructor
 
-        // Format based on type
+        // Conditional logic for coordinates based on type and orientation
+        if (type === 'rotationinfo' && orientation === 'ground') {
+            // Special case: RotationInfo + Ground -> use raw i, j for X, Z
+            finalCoordX = i;
+            finalCoordY = 0; // Y for ground is a fixed offset, currently 0
+            finalCoordZ = j;
+            isWallForRotationInfo = false;
+        } else {
+            // General case: use centered coordinates relative to the detected grid's center
+            let x_centered = i - centerI;
+            let y_centered = j - centerJ;
+            let fixed_offset_dimension = 0; // The fixed offset for the third dimension (wall's Z or ground's Y)
+
+            if (orientation === 'ground') {
+                finalCoordX = x_centered;
+                finalCoordY = fixed_offset_dimension;
+                finalCoordZ = y_centered; // For ground, the 'y_centered' from grid becomes the Z-axis
+                isWallForRotationInfo = false;
+            } else { // orientation === 'wall'
+                finalCoordX = x_centered;
+                finalCoordY = y_centered; // For wall, the 'y_centered' from grid becomes the Y-axis
+                finalCoordZ = fixed_offset_dimension;
+                isWallForRotationInfo = true;
+            }
+        }
+
+        // Apply relative offsets to the calculated coordinates
+        finalCoordX += relativeX;
+        finalCoordY += relativeY;
+        finalCoordZ += relativeZ;
+
+        // Construct the output string based on the selected generation type
         if (type === 'raw' || type === 'spaced') {
-            if (orientation === 'ground') {
-                output += `${x+relativeX}${separator}${offset+relativeY}${separator}${y+relativeZ}${separator}${detectedClass}\n`;
-            } else if (orientation === 'wall') {
-                output += `${x+relativeX}${separator}${y+relativeY}${separator}${offset+relativeZ}${separator}${detectedClass}\n`;
-            }
+            output += `${finalCoordX}${separator}${finalCoordY}${separator}${finalCoordZ}${separator}${detectedClass}\n`;
         } else if (type === 'rotationinfo') {
-            // Add RotationInfo format
-            const isWall = orientation === 'wall';
-            if (orientation === 'ground') {
-                output += `formation.add(new RotationInfo(${x+relativeX}, ${offset+relativeY}, ${y+relativeZ}, ${detectedClass}, false));\n`;
-            } else {
-                output += `formation.add(new RotationInfo(${x+relativeX}, ${y+relativeY}, ${offset+relativeZ}, ${detectedClass}, true));\n`;
-            }
+            output += `formation.add(new RotationInfo(${finalCoordX}, ${finalCoordY}, ${finalCoordZ}, ${detectedClass}, ${isWallForRotationInfo}));\n`;
         }
     }
 
-    // Display the output in a code block
+    // Display the generated output in the dedicated section
     const title = `${orientation.charAt(0).toUpperCase() + orientation.slice(1)} ${type.charAt(0).toUpperCase() + type.slice(1)} Data`;
     displayGeneratedOutput(output, title);
 
@@ -691,7 +806,7 @@ function generateRaw(orientation = 'wall', type = 'raw',relativeX, relativeY, re
 }
 
 function displayGeneratedOutput(output, title) {
-    // Create or update the output display
+    // Get or create the output display div
     let outputDisplay = document.getElementById('generatedOutput');
     if (!outputDisplay) {
         outputDisplay = document.createElement('div');
@@ -700,6 +815,7 @@ function displayGeneratedOutput(output, title) {
         document.querySelector('.generate-section').appendChild(outputDisplay);
     }
     
+    // Populate the output display with the generated text and a download button
     outputDisplay.innerHTML = `
         <h4>${title}</h4>
         <div class="code-block">
@@ -712,18 +828,21 @@ function displayGeneratedOutput(output, title) {
 }
 
 function downloadGeneratedOutput(content, filename) {
+    // Create a Blob from the content
     const blob = new Blob([content], { type: 'text/plain' });
+    // Create a URL for the Blob
     const url = URL.createObjectURL(blob);
+    // Create a temporary anchor element to trigger download
     const a = document.createElement('a');
     a.href = url;
     a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    document.body.appendChild(a); // Append to body to ensure it's in the DOM for click
+    a.click(); // Programmatically click the anchor to start download
+    document.body.removeChild(a); // Clean up the temporary element
+    URL.revokeObjectURL(url); // Release the Blob URL
 }
 
-// Key states for detecting held keys
+// Global object to track key states (which keys are currently pressed)
 let keyStates = {};
 
 document.addEventListener('keydown', (e) => {
@@ -734,16 +853,17 @@ document.addEventListener('keyup', (e) => {
     delete keyStates[e.key];
 });
 
+// Prevents keyboard events from input fields from affecting canvas controls
 function preventInputFieldKeyPropagation() {
     const coordinateInputs = document.querySelectorAll('.coordinate-inputs input');
     coordinateInputs.forEach(input => {
         input.addEventListener('keydown', (e) => {
-            e.stopPropagation(); // Prevent key events from propagating to the document
+            e.stopPropagation(); // Stop the event from bubbling up to the document
         });
     });
 }
 
-// Call this function during app initialization
-document.addEventListener('DOMContentLoaded', () => {
-    preventInputFieldKeyPropagation();
-});
+// Call this function during app initialization to set up input field key handlers
+// document.addEventListener('DOMContentLoaded', () => { // This is handled by appInit call within opencv.js runtime check
+//     preventInputFieldKeyPropagation();
+// });
