@@ -31,6 +31,9 @@ loadModel();
 let magnifiedCanvas, magnifiedCtx;
 let magnifiedView;
 
+// New: Variable to store the selected texture direction
+let textureDirection = 'north'; // Default direction
+
 function appInit() {
     inputCanvas = document.getElementById('inputCanvas');
     outputCanvas = document.getElementById('outputCanvas');
@@ -45,7 +48,7 @@ function appInit() {
     magnifiedCanvas.height = 120;
 
     document.getElementById('imageUpload').addEventListener('change', handleImageUpload);
-    document.getElementById('generateBtn').addEventListener('click', handleGenerate);
+    document.getElementById('generateBtn').addEventListener('click', handleGenerate); // This button doesn't exist in your HTML, consider removing or adding it if needed.
     document.addEventListener('keydown', handleKeyDown);
     inputCanvas.addEventListener('mousedown', handleMouseDown);
     inputCanvas.addEventListener('mousemove', handleMouseMove);
@@ -55,6 +58,15 @@ function appInit() {
     // Add mouse move handler for magnified view updates
     inputCanvas.addEventListener('mousemove', handleInputMouseMove);
     
+    // Get direction dropdown and add event listener
+    const directionSelect = document.getElementById('textureDirection');
+    if (directionSelect) {
+        directionSelect.addEventListener('change', (e) => {
+            textureDirection = e.target.value;
+            applyPerspectiveTransform(); // Recalculate transform with new direction
+        });
+    }
+
     // Load saved image and points on startup
     loadSavedImage();
 }
@@ -323,14 +335,57 @@ function applyPerspectiveTransform() {
     ];
     let avgSide = sideLengths.reduce((a, b) => a + b, 0) / 4;
     let halfSide = avgSide / 2;
-    let padding = 50;
-    let dst = [
-        [cx + padding - halfSide, cy + padding - halfSide],
-        [cx + padding + halfSide, cy + padding - halfSide],
-        [cx + padding + halfSide, cy + padding + halfSide],
-        [cx + padding - halfSide, cy + padding + halfSide]
+    let padding = 50; // Padding around the transformed square
+
+    let dst = []; // Destination points for the perspective transform
+
+    // Define the 4 corners of the destination square relative to its center [cx, cy]
+    // The perspective transform will map the source points (points[0-3]) to these destination points.
+    // The key here is to determine the order of the destination points based on the 'textureDirection'.
+    // The model expects a consistent orientation, typically "North" as the default.
+
+    // Base square points (e.g., for North: Top-Left, Top-Right, Bottom-Right, Bottom-Left)
+    const baseSquare = [
+        [cx + padding - halfSide, cy + padding - halfSide], // Top-Left
+        [cx + padding + halfSide, cy + padding - halfSide], // Top-Right
+        [cx + padding + halfSide, cy + padding + halfSide], // Bottom-Right
+        [cx + padding - halfSide, cy + padding + halfSide]  // Bottom-Left
     ];
-    squareDst = dst;
+
+    switch (textureDirection) {
+        case 'north': // Default: Top of the image is North (-Z)
+            dst = baseSquare;
+            break;
+        case 'south': // South (+Z): Rotate 180 degrees (Bottom-Right becomes Top-Left, etc.)
+            dst = [
+                baseSquare[2], // Original Bottom-Right becomes new Top-Left
+                baseSquare[3], // Original Bottom-Left becomes new Top-Right
+                baseSquare[0], // Original Top-Left becomes new Bottom-Right
+                baseSquare[1]  // Original Top-Right becomes new Bottom-Left
+            ];
+            break;
+        case 'east': // East (+X): Rotate 90 degrees clockwise
+            dst = [
+                baseSquare[3], // Original Bottom-Left becomes new Top-Left
+                baseSquare[0], // Original Top-Left becomes new Top-Right
+                baseSquare[1], // Original Top-Right becomes new Bottom-Right
+                baseSquare[2]  // Original Bottom-Right becomes new Bottom-Left
+            ];
+            break;
+        case 'west': // West (-X): Rotate 90 degrees counter-clockwise
+            dst = [
+                baseSquare[1], // Original Top-Right becomes new Top-Left
+                baseSquare[2], // Original Bottom-Right becomes new Top-Right
+                baseSquare[3], // Original Bottom-Left becomes new Bottom-Right
+                baseSquare[0]  // Original Top-Left becomes new Bottom-Left
+            ];
+            break;
+        default:
+            dst = baseSquare; // Fallback to north
+    }
+
+    squareDst = dst; // Store for grid drawing
+
     // Perspective transform
     let srcTri = cv.matFromArray(4, 1, cv.CV_32FC2, points.flat());
     let dstTri = cv.matFromArray(4, 1, cv.CV_32FC2, dst.flat());
