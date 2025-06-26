@@ -1,286 +1,221 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Block Rotation Detector</title>
-    <!-- OpenCV.js library -->
-    <script src="https://docs.opencv.org/4.8.0/opencv.js"></script>
-    <!-- TensorFlow.js libraries -->
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.15.0/dist/tf.min.js"></script>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-        .container {
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-        }
-        .upload-section {
-            margin-bottom: 20px;
-            padding: 20px;
-            border: 2px dashed #ccc;
-            border-radius: 5px;
-            text-align: center;
-        }
-        .canvas-container {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 20px;
-            justify-content: center;
-        }
-        .canvas-wrapper {
-            position: relative;
-            border: 1px solid #ddd;
-        }
-        .input-section {
-            display: flex;
-            gap: 20px;
-            align-items: flex-start;
-        }
-        canvas {
-            display: block;
-            max-width: 100%;
-            background-color: #f5f5f5;
-        }
-        .instructions {
-            background-color: #f8f9fa;
-            padding: 15px;
-            border-radius: 5px;
-            margin-bottom: 20px;
-        }
-        .controls {
-            margin-top: 10px;
-            display: flex;
-            gap: 10px;
-            justify-content: center;
-            flex-wrap: wrap;
-        }
-        button {
-            padding: 8px 16px;
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-        button:hover {
-            background-color: #45a049;
-        }
-        button:disabled {
-            background-color: #cccccc;
-            cursor: not-allowed;
-        }
-        .status {
-            margin-top: 10px;
-            color: #333;
-        }
-        .predictions {
-            margin-top: 20px;
-            padding: 10px;
-            background-color: #f0f0f0;
-            border-radius: 5px;
-            max-height: 200px;
-            overflow-y: auto;
-        }
-        .generate-section {
-            margin-top: 20px;
-            padding: 15px;
-            background-color: #f8f9fa;
-            border-radius: 5px;
-            border: 1px solid #dee2e6;
-        }
-        .generate-controls {
-            display: flex;
-            gap: 10px;
-            align-items: center;
-            margin-top: 10px;
-        }
-        .generate-controls select {
-            padding: 8px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            background-color: white;
-        }
-        .generate-controls button {
-            padding: 8px 16px;
-            background-color: #007bff;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-        .generate-controls button:hover {
-            background-color: #0056b3;
-        }
-        .generate-controls button:disabled {
-            background-color: #cccccc;
-            cursor: not-allowed;
-        }
-        .generated-output {
-            margin-top: 15px;
-            padding: 15px;
-            background-color: white;
-            border: 1px solid #dee2e6;
-            border-radius: 5px;
-        }
-        .generated-output h4 {
-            margin: 0 0 10px 0;
-            color: #333;
-        }
-        .code-block {
-            background-color: #f8f9fa;
-            border: 1px solid #e9ecef;
-            border-radius: 4px;
-            padding: 10px;
-            margin-bottom: 10px;
-            overflow-x: auto;
-        }
-        .code-block pre {
-            margin: 0;
-            font-family: 'Courier New', monospace;
-            font-size: 12px;
-            line-height: 1.4;
-        }
-        .code-block code {
-            color: #333;
-        }
-        .download-btn {
-            padding: 8px 16px;
-            background-color: #28a745;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-        .download-btn:hover {
-            background-color: #218838;
-        }
-        .magnified-view {
-            position: relative;
-            width: 200px;
-            height: 200px;
-            background-color: #f8f9fa;
-            border: 2px solid #4CAF50;
-            border-radius: 8px;
-            display: none;
-            flex-direction: column;
-            align-items: center;
-            padding: 10px;
-            margin-top: 0;
-        }
-        .magnified-view h4 {
-            color: #333;
-            margin: 0 0 10px 0;
-            font-size: 14px;
-        }
-        .magnified-view canvas {
-            border: 1px solid #ccc;
-            background-color: #f5f5f5;
-        }
-        .magnified-info {
-            margin-top: 5px;
-            color: #333;
-            font-size: 12px;
-            text-align: center;
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>☁️ Block Rotation Detector</title>
+
+  <!-- OpenCV.js & TensorFlow.js -->
+  <script src="https://docs.opencv.org/4.8.0/opencv.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.15.0/dist/tf.min.js"></script>
+
+  <style>
+    :root {
+      color-scheme: dark;
+    }
+
+    body {
+      background-color: #121212;
+      color: #e0e0e0;
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+    }
+
+    header {
+      background-color: #1e1e1e;
+      padding: 20px;
+      border-bottom: 1px solid #333;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: 24px;
+    }
+
+    nav {
+      display: flex;
+      gap: 10px;
+    }
+
+    nav a button {
+      background-color: #333;
+      color: #f1f1f1;
+      border: 1px solid #555;
+      padding: 8px 14px;
+      border-radius: 6px;
+      font-size: 14px;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+
+    nav a button:hover {
+      background-color: #444;
+    }
+
+    main {
+      max-width: 1200px;
+      margin: auto;
+      padding: 20px;
+    }
+
+    /* Dark theme overrides for original content */
+    .upload-section,
+    .instructions,
+    .generate-section,
+    .generated-output,
+    .code-block,
+    .magnified-view,
+    #predictionsOutput {
+      background-color: #1e1e1e;
+      border-color: #444;
+      color: #ddd;
+    }
+
+    canvas {
+      background-color: #1a1a1a;
+    }
+
+    button,
+    select {
+      background-color: #333;
+      color: white;
+      border: 1px solid #555;
+    }
+
+    button:hover,
+    .generate-controls button:hover,
+    .download-btn:hover {
+      background-color: #444;
+    }
+
+    .generate-controls button {
+      background-color: #007bff;
+    }
+
+    .generate-controls button:hover {
+      background-color: #0056b3;
+    }
+
+    .download-btn {
+      background-color: #28a745;
+    }
+
+    .download-btn:hover {
+      background-color: #218838;
+    }
+
+    .canvas-wrapper {
+      border: 1px solid #444;
+    }
+
+    .status,
+    .magnified-info,
+    .generate-controls option {
+      color: #ccc;
+    }
+  </style>
 </head>
+
 <body>
-    <h1>Block Rotation Detector</h1>
-    
+  <header>
+    <h1>☁️ Block Rotation Detector</h1>
+    <nav>
+      <a href="/"><button>Home</button></a>
+      <a href="/clouds/"><button>Clouds</button></a>
+      <a href="/textures/"><button>Textures</button></a>
+      <a href="/credits/"><button>Credits</button></a>
+    </nav>
+  </header>
+
+  <main>
+    <!-- BEGIN MAIN TOOL CONTENT -->
     <div class="container">
-        <div class="instructions">
-            <h3>How to use:</h3>
-            <ol>
-                <li>Upload an image using the button below</li>
-                <li>Adjust the 4 corner points to define the perspective area (clockwise from top-left)</li>
-                <li>The transformed image with grid will appear in real-time</li>
-                <li>Click on any grid square to run detection on it</li>
-            </ol>
-            <h4>Controls:</h4>
-            <ul>
-                <li><strong>Mouse:</strong> Click and drag corner points to adjust perspective</li>
-                <li><strong>Number Keys (1-4):</strong> Select different corner points</li>
-                <li><strong>Arrow Keys or WASD:</strong> Move selected point in small increments</li>
-                <li><strong>+/- Keys:</strong> Adjust movement step size</li>
-                <li><strong>R Key:</strong> Reset points to default positions</li>
-                <li><strong>Left Click:</strong> Run AI detection on grid squares</li>
-            </ul>
+      <div class="instructions">
+        <h3>How to use:</h3>
+        <ol>
+          <li>Upload an image using the button below</li>
+          <li>Adjust the 4 corner points to define the perspective area (clockwise from top-left)</li>
+          <li>The transformed image with grid will appear in real-time</li>
+          <li>Click on any grid square to run detection on it</li>
+        </ol>
+        <h4>Controls:</h4>
+        <ul>
+          <li><strong>Mouse:</strong> Click and drag corner points to adjust perspective</li>
+          <li><strong>Number Keys (1-4):</strong> Select different corner points</li>
+          <li><strong>Arrow Keys or WASD:</strong> Move selected point in small increments</li>
+          <li><strong>+/- Keys:</strong> Adjust movement step size</li>
+          <li><strong>R Key:</strong> Reset points to default positions</li>
+          <li><strong>Left Click:</strong> Run AI detection on grid squares</li>
+        </ul>
+      </div>
+
+      <div class="upload-section">
+        <input type="file" id="imageUpload" accept="image/*" />
+        <p>Or drag and drop an image here</p>
+      </div>
+
+      <div class="canvas-container">
+        <div class="input-section">
+          <div class="canvas-wrapper">
+            <canvas id="inputCanvas"></canvas>
+          </div>
+
+          <!-- Magnified view -->
+          <div id="magnifiedView" class="magnified-view" style="display: none;">
+            <h4>Magnified View</h4>
+            <canvas id="magnifiedCanvas"></canvas>
+            <div class="magnified-info">
+              <span id="magnifiedCoords">X: 0, Y: 0</span>
+            </div>
+          </div>
         </div>
 
-        <div class="upload-section">
-            <input type="file" id="imageUpload" accept="image/*">
-            <p>Or drag and drop an image here</p>
+        <div class="canvas-wrapper">
+          <canvas id="outputCanvas"></canvas>
+          <div class="controls"></div>
         </div>
-        
-        <div class="canvas-container">
-            <div class="input-section">
-                <div class="canvas-wrapper">
-                    <canvas id="inputCanvas"></canvas>
-                </div>
-                
-                <!-- Magnified view for precise point editing -->
-                <div id="magnifiedView" class="magnified-view" style="display: none;">
-                    <h4>Magnified View</h4>
-                    <canvas id="magnifiedCanvas"></canvas>
-                    <div class="magnified-info">
-                        <span id="magnifiedCoords">X: 0, Y: 0</span>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="canvas-wrapper">
-                <canvas id="outputCanvas"></canvas>
-                <div class="controls">
-                    <!-- Export button removed -->
-                </div>
-            </div>
-        </div>
+      </div>
 
-        <!-- Generate Code Section -->
-        <div class="generate-section">
-            <h3>Generate Formation</h3>
-            <div class="generate-controls">
-                <select id="generationType">
-                    <option value="raw">Comma</option>
-                    <option value="spaced">Spaced</option>
-                </select>
-                <select id="orientation">
-                    <option value="wall">Wall</option>
-                    <option value="ground">Ground</option>
-                </select>
-                <button id="generateBtn">Generate</button>
-            </div>
+      <div class="generate-section">
+        <h3>Generate Formation</h3>
+        <div class="generate-controls">
+          <select id="generationType">
+            <option value="raw">Comma</option>
+            <option value="spaced">Spaced</option>
+          </select>
+          <select id="orientation">
+            <option value="wall">Wall</option>
+            <option value="ground">Ground</option>
+          </select>
+          <button id="generateBtn">Generate</button>
         </div>
+      </div>
 
-        <div class="status" id="statusMsg"></div>
-        
-        <div class="predictions" id="predictionsOutput" style="display: none;">
-            <h3>Detection Results:</h3>
-            <div id="predictionsList"></div>
-        </div>
-        
-        <!-- Bottom spacing -->
-        <div style="height: 50px;"></div>
+      <div class="status" id="statusMsg"></div>
+
+      <div class="predictions" id="predictionsOutput" style="display: none;">
+        <h3>Detection Results:</h3>
+        <div id="predictionsList"></div>
+      </div>
+
+      <div style="height: 50px;"></div>
     </div>
+    <!-- END MAIN TOOL CONTENT -->
+  </main>
 
-    <!-- Main application script -->
-    <script src="main.js"></script>
-    <script>
-        // Initialize the app when OpenCV.js is ready
-        function onOpenCvReady() {
-            if (typeof appInit === 'function') {
-                appInit();
-            }
-        }
-        // Add event listener for OpenCV.js loaded
-        cv['onRuntimeInitialized'] = onOpenCvReady;
-    </script>
+  <script src="main.js"></script>
+  <script>
+    // Initialize app when OpenCV is ready
+    function onOpenCvReady() {
+      if (typeof appInit === 'function') {
+        appInit();
+      }
+    }
+    cv['onRuntimeInitialized'] = onOpenCvReady;
+  </script>
 </body>
 </html>
