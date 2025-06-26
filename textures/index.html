@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <titleTexture Rotation Classifier</title>
+  <title>Texture Rotation Classifier</title>
 
   <!-- OpenCV.js & TensorFlow.js -->
   <script src="https://docs.opencv.org/4.8.0/opencv.js"></script>
@@ -77,6 +77,10 @@
 
     canvas {
       background-color: #1a1a1a;
+      max-width: 100%;
+      max-height: 80vh; /* Limit height to 80% of the viewport height */
+      display: block;
+      margin: auto;
     }
 
     button,
@@ -110,6 +114,8 @@
 
     .canvas-wrapper {
       border: 1px solid #444;
+      max-width: 100%;
+      overflow: auto; /* Allow scrolling if necessary */
     }
 
     .status,
@@ -146,6 +152,7 @@
         <ul>
           <li><strong>Mouse:</strong> Click and drag corner points to adjust perspective</li>
           <li><strong>Number Keys (1-4):</strong> Select different corner points</li>
+          <li><strong>Mouse & Number Keys (1-4):</strong> Hold a key and click to move selected point</li>
           <li><strong>Arrow Keys or WASD:</strong> Move selected point in small increments</li>
           <li><strong>+/- Keys:</strong> Adjust movement step size</li>
           <li><strong>R Key:</strong> Reset points to default positions</li>
@@ -173,7 +180,14 @@
             </div>
           </div>
         </div>
-
+        <div class="coordinate-inputs">
+          <label for="relativeX">X:</label>
+          <input type="number" id="relativeX" value="0" step="1" />
+          <label for="relativeY">Y:</label>
+          <input type="number" id="relativeY" value="0" step="1" />
+          <label for="relativeZ">Z:</label>
+          <input type="number" id="relativeZ" value="0" step="1" />
+        </div>
         <div class="canvas-wrapper">
           <canvas id="outputCanvas"></canvas>
           <div class="controls"></div>
@@ -181,17 +195,17 @@
       </div>
 
       <div class="generate-section">
-        <h3>IGNORE THIS</h3>
+        <h3>Generate Section</h3>
         <div class="generate-controls">
           <select id="generationType">
-            <option value="raw">IGNORE</option>
-            <option value="spaced">IGNORE</option>
+            <option value="raw">Raw</option>
+S            <option value="rotationinfo">Rotationinfo</option>
           </select>
           <select id="orientation">
-            <option value="wall">IGNORE</option>
-            <option value="ground">IGNORE</option>
+            <option value="ground">Ground</option>
+            <option value="wall">Wall</option>
           </select>
-          <button id="generateBtn">IGNORE</button>
+          <button id="generateBtn">Generate</button>
         </div>
       </div>
 

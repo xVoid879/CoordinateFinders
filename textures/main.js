@@ -199,6 +199,23 @@ function handleMouseDown(e) {
     const scaleY = inputCanvas.height / rect.height;
     const x = (e.clientX - rect.left) * scaleX;
     const y = (e.clientY - rect.top) * scaleY;
+
+    // Check if a number key (1-4) is being held
+    if (e.shiftKey || e.ctrlKey || e.altKey) return; // Ignore modifier keys
+    const heldKey = Object.keys(keyStates).find(key => key >= '1' && key <= '4');
+    if (heldKey) {
+        const pointIndex = parseInt(heldKey) - 1;
+        if (pointIndex < points.length) {
+            points[pointIndex] = [x, y];
+            lastSelectedPoint = pointIndex;
+            drawInput();
+            if (points.length === 4) {
+                applyPerspectiveTransform();
+            }
+        }
+        return;
+    }
+
     // Debug: draw a crosshair at the click location
     drawInput();
     inputCtx.save();
@@ -212,10 +229,12 @@ function handleMouseDown(e) {
     inputCtx.arc(x, y, 4, 0, 2 * Math.PI);
     inputCtx.stroke();
     inputCtx.restore();
+
     // Check if clicking on a point (use larger, more precise hitbox)
     for (let i = 0; i < points.length; ++i) {
         let [px, py] = points[i];
-        if (Math.hypot(x - px, y - py) <= pointSize + 2) { // match drawn point size
+        if (Math.hypot(x - px, y - py) <= pointSize + 2) // match drawn point size
+        {
             lastSelectedPoint = i;
             drawInput();
             dragging = true;
@@ -223,6 +242,7 @@ function handleMouseDown(e) {
             return;
         }
     }
+
     // Add new point if less than 4
     if (points.length < 4) {
         points.push([x, y]);
@@ -417,13 +437,14 @@ async function runOnSquare(croppedCanvas, info) {
 async function handleOutputCanvasClick(e) {
     // Only respond to left mouse button (button 0)
     if (e.button !== 0) return;
-    
+
     if (!cleanWarpedCanvas || !squareDst) return;
     const rect = outputCanvas.getBoundingClientRect();
     const scaleX = outputCanvas.width / rect.width;
     const scaleY = outputCanvas.height / rect.height;
     const x = (e.clientX - rect.left) * scaleX;
     const y = (e.clientY - rect.top) * scaleY;
+
     // Find which grid square was clicked
     let squarePoints = squareDst.map(pt => [Math.round(pt[0]), Math.round(pt[1])]);
     let avgSide = Math.hypot(squarePoints[1][0] - squarePoints[0][0], squarePoints[1][1] - squarePoints[0][1]);
@@ -436,21 +457,25 @@ async function handleOutputCanvasClick(e) {
     let tly = gridOriginY + j * sSize;
     let brx = tlx + sSize;
     let bry = tly + sSize;
+
     if (tlx < 0 || tly < 0 || brx > outputCanvas.width || bry > outputCanvas.height) return;
+
     let cropCanvas = document.createElement('canvas');
     cropCanvas.width = sSize;
     cropCanvas.height = sSize;
     let cropCtx = cropCanvas.getContext('2d');
     cropCtx.drawImage(cleanWarpedCanvas, tlx, tly, sSize, sSize, 0, 0, sSize, sSize);
-    // Show loading text immediately (even if square was already detected)
+
+    // Show loading text immediately (replace old text if it exists)
     let squareKey = `${i},${j}`;
     squareTexts[squareKey] = '...';
     drawGridOverlay();
-    // Run AI prediction (always run, even for previously detected squares)
-    let resultText = await runOnSquare(cropCanvas, {i, j, x, y});
+
+    // Run AI prediction (replace old prediction with the new one)
+    let resultText = await runOnSquare(cropCanvas, { i, j, x, y });
     squareTexts[squareKey] = resultText;
     drawGridOverlay();
-    
+
     // Redraw input canvas to refresh the display
     drawInput();
 }
@@ -587,32 +612,36 @@ function handleInputMouseMove(e) {
 function handleGenerate() {
     const generationType = document.getElementById('generationType').value;
     const orientation = document.getElementById('orientation').value;
-    
-    switch (generationType) {
-        case 'raw':
-            generateRaw(orientation, false);
-            break;
-        case 'spaced':
-            generateRaw(orientation, true);
-            break;
-        default:
-            console.log('Unknown generation type:', generationType);
-    }
+
+    // Retrieve coordinate inputs
+    const { relativeX, relativeY, relativeZ } = getCoordinateInputs();
+
+    // Pass generationType, orientation, and coordinate inputs as arguments
+    generateRaw(orientation, generationType, relativeX, relativeY, relativeZ);
 }
 
-function generateRaw(orientation = 'wall', spaced = false) {
+// Function to retrieve coordinate inputs
+function getCoordinateInputs() {
+    const relativeX = parseFloat(document.getElementById('relativeX').value) || 0;
+    const relativeY = parseFloat(document.getElementById('relativeY').value) || 0;
+    const relativeZ = parseFloat(document.getElementById('relativeZ').value) || 0;
+
+    return { relativeX, relativeY, relativeZ };
+}
+
+function generateRaw(orientation = 'wall', type = 'raw',relativeX, relativeY, relativeZ,) {
     if (!squareDst || Object.keys(squareTexts).length === 0) {
         alert('No detected squares found. Please run detection on some squares first.');
         return;
     }
-    
+
     let output = '';
-    const separator = spaced ? ' ' : ',';
-    
+    const separator = type === 'spaced' ? ' ' : ','; // Use space for 'spaced', comma otherwise
+
     // Find the range of grid coordinates to center around (0,0)
     let minI = Infinity, maxI = -Infinity;
     let minJ = Infinity, maxJ = -Infinity;
-    
+
     for (let key in squareTexts) {
         let [i, j] = key.split(',').map(Number);
         minI = Math.min(minI, i);
@@ -620,36 +649,44 @@ function generateRaw(orientation = 'wall', spaced = false) {
         minJ = Math.min(minJ, j);
         maxJ = Math.max(maxJ, j);
     }
-    
+
     // Calculate center offset to make the grid centered around (0,0)
     let centerI = Math.floor((minI + maxI) / 2);
     let centerJ = Math.floor((minJ + maxJ) / 2);
-    
+
     // Process each detected square
     for (let key in squareTexts) {
         let [i, j] = key.split(',').map(Number);
-        
+
         // Convert to centered coordinates
         let x = i - centerI;
         let y = j - centerJ;
-        
+        let offset = 0; // Default offset for ground orientation change to individual square
         // Extract class from the text (e.g., "0 (95.2%)" -> "0")
         let detectedClass = squareTexts[key].split(' ')[0];
-        
-        // Format based on orientation
-        if (orientation === 'ground') {
-            // Format: x,0,y,class or x 0 y class
-            output += `${x}${separator}0${separator}${y}${separator}${detectedClass}\n`;
-        } else {
-            // Format: x,y,0,class or x y 0 class
-            output += `${x}${separator}${y}${separator}0${separator}${detectedClass}\n`;
+
+        // Format based on type
+        if (type === 'raw' || type === 'spaced') {
+            if (orientation === 'ground') {
+                output += `${x+relativeX}${separator}${offset+relativeY}${separator}${y+relativeZ}${separator}${detectedClass}\n`;
+            } else if (orientation === 'wall') {
+                output += `${x+relativeX}${separator}${y+relativeY}${separator}${offset+relativeZ}${separator}${detectedClass}\n`;
+            }
+        } else if (type === 'rotationinfo') {
+            // Add RotationInfo format
+            const isWall = orientation === 'wall';
+            if (orientation === 'ground') {
+                output += `formation.add(new RotationInfo(${x+relativeX}, ${offset+relativeY}, ${y+relativeZ}, ${detectedClass}, false));\n`;
+            } else {
+                output += `formation.add(new RotationInfo(${x+relativeX}, ${y+relativeY}, ${offset+relativeZ}, ${detectedClass}, true));\n`;
+            }
         }
     }
-    
+
     // Display the output in a code block
-    const title = `${orientation.charAt(0).toUpperCase() + orientation.slice(1)} ${spaced ? 'Spaced' : 'Comma'} Data`;
+    const title = `${orientation.charAt(0).toUpperCase() + orientation.slice(1)} ${type.charAt(0).toUpperCase() + type.slice(1)} Data`;
     displayGeneratedOutput(output, title);
-    
+
     console.log('Generated data:', output);
 }
 
@@ -685,3 +722,28 @@ function downloadGeneratedOutput(content, filename) {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
 }
+
+// Key states for detecting held keys
+let keyStates = {};
+
+document.addEventListener('keydown', (e) => {
+    keyStates[e.key] = true;
+});
+
+document.addEventListener('keyup', (e) => {
+    delete keyStates[e.key];
+});
+
+function preventInputFieldKeyPropagation() {
+    const coordinateInputs = document.querySelectorAll('.coordinate-inputs input');
+    coordinateInputs.forEach(input => {
+        input.addEventListener('keydown', (e) => {
+            e.stopPropagation(); // Prevent key events from propagating to the document
+        });
+    });
+}
+
+// Call this function during app initialization
+document.addEventListener('DOMContentLoaded', () => {
+    preventInputFieldKeyPropagation();
+});
