@@ -386,7 +386,9 @@ function resetPoints() {
     if (!imgElement) return; // Do nothing if no image is loaded
     points = getDefaultPoints(); // Get default initial points
     lastSelectedPoint = 0; // Select the first point
+    squareTexts = {}; // Clear all text labels and their values
     drawInput(); // Redraw input canvas
+    drawGridOverlay(); // Redraw the grid overlay without labels
     applyPerspectiveTransform(); // Re-apply transform
 }
 
@@ -552,6 +554,16 @@ async function handleOutputCanvasClick(e) {
     // Check if the calculated square coordinates are within the canvas bounds
     if (tlx < 0 || tly < 0 || brx > outputCanvas.width || bry > outputCanvas.height) return;
 
+    // Create a unique key for the clicked square
+    let squareKey = `${i},${j}`;
+
+    // If the square already has text, clear its data and remove the text
+    if (squareTexts[squareKey]) {
+        delete squareTexts[squareKey]; // Remove the text data for the square
+        drawGridOverlay(); // Redraw the grid without the text
+        return;
+    }
+
     // Create a temporary canvas to crop the selected grid square
     let cropCanvas = document.createElement('canvas');
     cropCanvas.width = sSize;
@@ -561,7 +573,6 @@ async function handleOutputCanvasClick(e) {
     cropCtx.drawImage(cleanWarpedCanvas, tlx, tly, sSize, sSize, 0, 0, sSize, sSize);
 
     // Show loading text immediately on the clicked square
-    let squareKey = `${i},${j}`;
     squareTexts[squareKey] = '...';
     drawGridOverlay(); // Redraw grid with loading text
 
