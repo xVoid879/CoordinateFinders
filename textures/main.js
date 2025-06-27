@@ -557,10 +557,10 @@ async function handleOutputCanvasClick(e) {
 
 function drawGridOverlay() {
     if (!warpedMat) return; // Do nothing if no warped image
-    
+
     let ctx = outputCtx;
     ctx.save(); // Save current canvas state
-    
+
     // Reset output canvas to the clean warped image before drawing new grid/text
     if (cleanWarpedCanvas) {
         ctx.clearRect(0, 0, outputCanvas.width, outputCanvas.height);
@@ -571,27 +571,38 @@ function drawGridOverlay() {
     ctx.strokeStyle = 'lime'; // Grid line color
 
     let squarePoints = squareDst.map(pt => [Math.round(pt[0]), Math.round(pt[1])]);
-    // Calculate average side length of the warped square to determine grid cell size
     let avgSide = Math.hypot(squarePoints[1][0] - squarePoints[0][0], squarePoints[1][1] - squarePoints[0][1]);
     squareSize = Math.round(avgSide); // The size of each square in the grid
-    
+
     let w = outputCanvas.width;
     let h = outputCanvas.height;
 
-    // Draw horizontal grid lines extending from the main square
+    // Draw horizontal grid lines
     for (let y = squarePoints[0][1]; y < h; y += squareSize) {
-        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(w, y);
+        ctx.stroke();
     }
     for (let y = squarePoints[0][1]; y > 0; y -= squareSize) {
-        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(w, y);
+        ctx.stroke();
     }
 
-    // Draw vertical grid lines extending from the main square
+    // Draw vertical grid lines
     for (let x = squarePoints[0][0]; x > 0; x -= squareSize) {
-        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, h);
+        ctx.stroke();
     }
     for (let x = squarePoints[1][0]; x < w; x += squareSize) {
-        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, h);
+        ctx.stroke();
     }
 
     // Draw the main warped square outline in red
@@ -609,27 +620,44 @@ function drawGridOverlay() {
     // Draw text (detection info and grid position) on each detected square
     for (let key in squareTexts) {
         let [i, j] = key.split(',').map(Number); // Parse grid indices from key
-        
+
         // Calculate the center of the current grid square
         let tlx = squarePoints[0][0] + i * squareSize;
         let tly = squarePoints[0][1] + j * squareSize;
         let centerX = tlx + squareSize / 2;
         let centerY = tly + squareSize / 2;
-        
-        // Draw detection info
-        ctx.font = '26px Arial';
+
+        // Calculate font size proportional to 5/6 of the square width, divided by 1 + string length
+        let yellowFontSize = Math.round((3 / 4) * squareSize / ((squareTexts[key].length)/2));
+        ctx.font = `${yellowFontSize}px Arial`;
         ctx.fillStyle = 'yellow';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(squareTexts[key], centerX, centerY - 10);
-        
-        // Draw grid position underneath
-        ctx.font = '24px Arial';
+
+        // Calculate font size proportional to 24/26 of the yellow font size
+        ctx.font = `${Math.round((24 / 26) * yellowFontSize)}px Arial`;
         ctx.fillStyle = 'cyan';
         ctx.fillText(`(${i},${j})`, centerX, centerY + 10);
     }
     ctx.restore(); // Restore saved canvas state
 }
+
+// Dynamically update labels when the second image changes
+function updateLabelsOnImageChange() {
+    if (!cleanWarpedCanvas || !squareDst) return;
+
+    // Clear existing labels
+    squareTexts = {};
+
+    // Redraw the grid overlay to reflect the new image
+    drawGridOverlay();
+}
+
+// Call `updateLabelsOnImageChange` whenever the second image changes
+document.getElementById('imageUpload').addEventListener('change', () => {
+    updateLabelsOnImageChange();
+});
 
 function showMagnifiedView(x, y) {
     if (!imgElement) return;
