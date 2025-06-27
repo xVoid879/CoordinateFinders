@@ -123,6 +123,23 @@
     .generate-controls option {
       color: #ccc;
     }
+
+    .magnified-controls {
+      margin-top: 10px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .magnified-controls label {
+      font-size: 14px;
+      color: #ddd;
+    }
+
+    .magnified-controls input[type="range"] {
+      width: 100%;
+      max-width: 200px;
+    }
   </style>
 </head>
 
@@ -177,6 +194,14 @@
             <canvas id="magnifiedCanvas"></canvas>
             <div class="magnified-info">
               <span id="magnifiedCoords">X: 0, Y: 0</span>
+            </div>
+            <div class="magnified-controls">
+              <label for="magnificationSlider">Magnification:</label>
+              <input type="range" id="magnificationSlider" min="1" max="25" value="10" step="1" />
+            </div>
+            <div class="magnified-controls">
+              <label for="magnifierSizeSlider">Magnifier Size:</label>
+              <input type="range" id="magnifierSizeSlider" min="20" max="100" value="45" step="5" />
             </div>
           </div>
         </div>

@@ -41,6 +41,9 @@ loadModel();
 let magnifiedCanvas, magnifiedCtx;
 let magnifiedView;
 
+// Add a variable to store the magnification level
+let magnificationLevel = 4; // Default magnification level
+
 function appInit() {
     inputCanvas = document.getElementById('inputCanvas');
     outputCanvas = document.getElementById('outputCanvas');
@@ -51,8 +54,24 @@ function appInit() {
     magnifiedCanvas = document.getElementById('magnifiedCanvas');
     magnifiedCtx = magnifiedCanvas.getContext('2d');
     magnifiedView = document.getElementById('magnifiedView');
-    magnifiedCanvas.width = 180;
-    magnifiedCanvas.height = 120; // Adjusted height for image
+
+    // Set initial magnified canvas size
+    const magnifierSizeSlider = document.getElementById('magnifierSizeSlider');
+    const updateMagnifierSize = () => {
+        const sizeMultiplier = parseInt(magnifierSizeSlider.value, 10);
+        magnifiedCanvas.width = sizeMultiplier * 4;
+        magnifiedCanvas.height = sizeMultiplier * 3;
+        if (lastSelectedPoint >= 0 && lastSelectedPoint < points.length) {
+            const [x, y] = points[lastSelectedPoint];
+            updateMagnifiedView(x, y); // Update the magnified view with the new size
+        }
+    };
+
+    // Add event listener to update magnifier size when slider changes
+    magnifierSizeSlider.addEventListener('input', updateMagnifierSize);
+
+    // Initialize magnifier size based on slider value
+    updateMagnifierSize();
 
     document.getElementById('imageUpload').addEventListener('change', handleImageUpload);
     document.getElementById('generateBtn').addEventListener('click', handleGenerate);
@@ -367,7 +386,9 @@ function resetPoints() {
     if (!imgElement) return; // Do nothing if no image is loaded
     points = getDefaultPoints(); // Get default initial points
     lastSelectedPoint = 0; // Select the first point
+    squareTexts = {}; // Clear all text labels and their values
     drawInput(); // Redraw input canvas
+    drawGridOverlay(); // Redraw the grid overlay without labels
     applyPerspectiveTransform(); // Re-apply transform
 }
 
@@ -533,6 +554,16 @@ async function handleOutputCanvasClick(e) {
     // Check if the calculated square coordinates are within the canvas bounds
     if (tlx < 0 || tly < 0 || brx > outputCanvas.width || bry > outputCanvas.height) return;
 
+    // Create a unique key for the clicked square
+    let squareKey = `${i},${j}`;
+
+    // If the square already has text, clear its data and remove the text
+    if (squareTexts[squareKey]) {
+        delete squareTexts[squareKey]; // Remove the text data for the square
+        drawGridOverlay(); // Redraw the grid without the text
+        return;
+    }
+
     // Create a temporary canvas to crop the selected grid square
     let cropCanvas = document.createElement('canvas');
     cropCanvas.width = sSize;
@@ -542,7 +573,6 @@ async function handleOutputCanvasClick(e) {
     cropCtx.drawImage(cleanWarpedCanvas, tlx, tly, sSize, sSize, 0, 0, sSize, sSize);
 
     // Show loading text immediately on the clicked square
-    let squareKey = `${i},${j}`;
     squareTexts[squareKey] = '...';
     drawGridOverlay(); // Redraw grid with loading text
 
@@ -670,48 +700,52 @@ function hideMagnifiedView() {
     magnifiedView.style.display = 'none';
 }
 
+// Update the magnified view function to zoom from the center
 function updateMagnifiedView(x, y) {
     if (!imgElement || !magnifiedCanvas) return;
-    
-    const zoom = 4; // 4x magnification
-    const size = 45; // Size of the area to capture (45px source * 4 = 180px magnified canvas width)
-    
-    // Calculate the area to capture from the input canvas, clamping to image bounds
-    const sourceX = Math.max(0, Math.min(x - size/2, inputCanvas.width - size));
-    const sourceY = Math.max(0, Math.min(y - size/2, inputCanvas.height - size));
-    
-    // Create a temporary canvas with just the image (no lines/points)
-    const tempCanvas = document.createElement('canvas');
-    tempCanvas.width = inputCanvas.width;
-    tempCanvas.height = inputCanvas.height;
-    const tempCtx = tempCanvas.getContext('2d');
-    
-    // Draw just the image without any overlay
-    tempCtx.drawImage(imgElement, 0, 0);
-    
+
+    const zoom = magnificationLevel; // Use the magnification level from the slider
+    const magnifiedWidth = magnifiedCanvas.width;
+    const magnifiedHeight = magnifiedCanvas.height;
+
+    // Calculate the area to capture from the original image, clamping to image bounds
+    const sourceWidth = magnifiedWidth / zoom;
+    const sourceHeight = magnifiedHeight / zoom;
+    const sourceX = Math.max(0, Math.min(x - sourceWidth / 2, imgElement.width - sourceWidth));
+    const sourceY = Math.max(0, Math.min(y - sourceHeight / 2, imgElement.height - sourceHeight));
+
     // Clear the magnified canvas
-    magnifiedCtx.clearRect(0, 0, magnifiedCanvas.width, magnifiedCanvas.height);
-    
-    // Draw the magnified portion from the clean image onto the magnified canvas
+    magnifiedCtx.clearRect(0, 0, magnifiedWidth, magnifiedHeight);
+
+    // Draw the magnified portion directly from the original image
     magnifiedCtx.drawImage(
-        tempCanvas, 
-        sourceX, sourceY, size, size, // Source rectangle
-        0, 0, magnifiedCanvas.width, magnifiedCanvas.height // Destination rectangle
+        imgElement,
+        sourceX, sourceY, sourceWidth, sourceHeight, // Source rectangle from the original image
+        0, 0, magnifiedWidth, magnifiedHeight // Destination rectangle on the magnified canvas
     );
-    
+
     // Draw a red crosshair at the center of the magnified view
     magnifiedCtx.strokeStyle = 'red';
     magnifiedCtx.lineWidth = 2;
     magnifiedCtx.beginPath();
-    magnifiedCtx.moveTo(magnifiedCanvas.width/2 - 10, magnifiedCanvas.height/2);
-    magnifiedCtx.lineTo(magnifiedCanvas.width/2 + 10, magnifiedCanvas.height/2);
-    magnifiedCtx.moveTo(magnifiedCanvas.width/2, magnifiedCanvas.height/2 - 10);
-    magnifiedCtx.lineTo(magnifiedCanvas.width/2, magnifiedCanvas.height/2 + 10);
+    magnifiedCtx.moveTo(magnifiedWidth / 2 - 10, magnifiedHeight / 2);
+    magnifiedCtx.lineTo(magnifiedWidth / 2 + 10, magnifiedHeight / 2);
+    magnifiedCtx.moveTo(magnifiedWidth / 2, magnifiedHeight / 2 - 10);
+    magnifiedCtx.lineTo(magnifiedWidth / 2, magnifiedHeight / 2 + 10);
     magnifiedCtx.stroke();
-    
+
     // Update coordinates display
     document.getElementById('magnifiedCoords').textContent = `X: ${Math.round(x)}, Y: ${Math.round(y)}`;
 }
+
+// Add an event listener to the magnification slider
+document.getElementById('magnificationSlider').addEventListener('input', (e) => {
+    magnificationLevel = parseInt(e.target.value, 25); // Update the magnification level
+    if (lastSelectedPoint >= 0 && lastSelectedPoint < points.length) {
+        const [x, y] = points[lastSelectedPoint];
+        updateMagnifiedView(x, y); // Update the magnified view with the new level
+    }
+});
 
 function handleInputMouseMove(e) {
     if (!imgElement) return;
