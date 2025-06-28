@@ -589,7 +589,7 @@ async function handleOutputCanvasClick(e) {
     
     // Check if confidence is below 70%
     let confidence = parseFloat(resultText.match(/\(([\d.]+)%\)/)?.[1] || '0');
-    if (confidence < 84) {
+    if (confidence < 70) {
         // Store this square as having low confidence
         lowConfidenceSquares[squareKey] = {
             confidence: confidence,
@@ -861,8 +861,9 @@ function generateRaw(orientation = 'wall', type = 'raw',relativeX, relativeY, re
     let centerJ = Math.floor((minJ + maxJ) / 2);
 
     let output = ''; // String to build the final generated output
+    let formationText = ''; // Temporary formation text for direction detection
 
-    // Iterate through each detected square and format its data
+    // First pass: Generate formation.add lines for direction detection
     for (let key in squareTexts) {
         let [i, j] = key.split(',').map(Number); // Current square's grid indices
         let detectedClass = squareTexts[key].split(' ')[0]; // Extract class from "Class (Confidence%)"
@@ -903,6 +904,60 @@ function generateRaw(orientation = 'wall', type = 'raw',relativeX, relativeY, re
         finalCoordY += relativeY;
         finalCoordZ += relativeZ;
 
+        // Build formation text for direction detection
+        formationText += `formation.add(new RotationInfo(${finalCoordX}, ${finalCoordY}, ${finalCoordZ}, ${detectedClass}, ${isWallForRotationInfo}));\n`;
+    }
+
+    // Detect the cluster facing direction
+    const detectedDirection = determineClusterFacing(formationText);
+    console.log(`Detected direction: ${detectedDirection}`);
+
+    // Second pass: Generate final output with adjusted coordinates
+    for (let key in squareTexts) {
+        let [i, j] = key.split(',').map(Number); // Current square's grid indices
+        let detectedClass = squareTexts[key].split(' ')[0]; // Extract class from "Class (Confidence%)"
+
+        let finalCoordX; // Final X coordinate for output
+        let finalCoordY; // Final Y coordinate for output
+        let finalCoordZ; // Final Z coordinate for output
+        let isWallForRotationInfo; // Boolean for RotationInfo constructor
+
+        // Conditional logic for coordinates based on type and orientation
+        if (type === 'rotationinfo' && orientation === 'ground') {
+            // Special case: RotationInfo + Ground -> use raw i, j for X, Z
+            finalCoordX = i;
+            finalCoordY = 0; // Y for ground is a fixed offset, currently 0
+            finalCoordZ = j;
+            isWallForRotationInfo = false;
+        } else {
+            // General case: use centered coordinates relative to the detected grid's center
+            let x_centered = i
+            let y_centered = j
+            let fixed_offset_dimension = 0; // The fixed offset for the third dimension (wall's Z or ground's Y)
+
+            if (orientation === 'ground') {
+                finalCoordX = x_centered;
+                finalCoordY = fixed_offset_dimension;
+                finalCoordZ = y_centered; // For ground, the 'y_centered' from grid becomes the Z-axis
+                isWallForRotationInfo = false;
+            } else { // orientation === 'wall'
+                finalCoordX = x_centered;
+                finalCoordY = y_centered; // For wall, the 'y_centered' from grid becomes the Y-axis
+                finalCoordZ = fixed_offset_dimension;
+                isWallForRotationInfo = true;
+            }
+        }
+
+        // Apply relative offsets to the calculated coordinates
+        finalCoordX += relativeX;
+        finalCoordY += relativeY;
+        finalCoordZ += relativeZ;
+
+        // Adjust coordinates based on detected direction (only for X and Z)
+        if (detectedDirection && detectedDirection !== "North") {
+            [finalCoordX, finalCoordZ] = adjustCoordinatesForDirection(finalCoordX, finalCoordZ, detectedDirection);
+        }
+
         // Construct the output string based on the selected generation type
         if (type === 'raw') {
             output += `${finalCoordX}${separator}${finalCoordY}${separator}${finalCoordZ}${separator}${detectedClass}\n`;
@@ -912,7 +967,8 @@ function generateRaw(orientation = 'wall', type = 'raw',relativeX, relativeY, re
     }
 
     // Display the generated output in the dedicated section
-    const title = `${orientation.charAt(0).toUpperCase() + orientation.slice(1)} ${type.charAt(0).toUpperCase() + type.slice(1)} Data`;
+    const directionInfo = detectedDirection ? ` (Adjusted for ${detectedDirection} facing)` : '';
+    const title = `${orientation.charAt(0).toUpperCase() + orientation.slice(1)} ${type.charAt(0).toUpperCase() + type.slice(1)} Data${directionInfo}`;
     displayGeneratedOutput(output, title);
 
     console.log('Generated data:', output);
@@ -980,3 +1036,94 @@ function preventInputFieldKeyPropagation() {
 // document.addEventListener('DOMContentLoaded', () => { // This is handled by appInit call within opencv.js runtime check
 //     preventInputFieldKeyPropagation();
 // });
+
+// --- Direction Detection Functions (ported from Python) ---
+const DIRECTIONS = ["North", "West", "South", "East"]; // 0, 1, 2, 3
+
+function parseFormationAddLines(formationText) {
+    const blocks = [];
+    const pattern = /formation\.add\(new RotationInfo\(\s*(-?\d+),\s*(-?\d+),\s*(-?\d+),\s*(\d+),\s*(true|false)\s*\)\);/g;
+    
+    let match;
+    while ((match = pattern.exec(formationText)) !== null) {
+        const x = parseInt(match[1]);
+        const y = parseInt(match[2]);
+        const z = parseInt(match[3]);
+        const rot = parseInt(match[4]);
+        blocks.push({
+            x: x,
+            y: y,
+            z: z,
+            rot: rot % 4
+        });
+    }
+    
+    return blocks;
+}
+
+function unrotate(x, z, rot) {
+    rot = rot % 4;
+    if (rot === 0) { // North
+        return [x, z];
+    } else if (rot === 1) { // West
+        return [-z, x];
+    } else if (rot === 2) { // South
+        return [-x, -z];
+    } else if (rot === 3) { // East
+        return [z, -x];
+    }
+}
+
+function findOriginBlock(blocks) {
+    for (const block of blocks) {
+        const [unrotX, unrotZ] = unrotate(block.x, block.z, block.rot);
+        if (unrotX === 0 && unrotZ === 0) {
+            return block;
+        }
+    }
+    return null;
+}
+
+function determineClusterFacing(formationText) {
+    const blocks = parseFormationAddLines(formationText);
+    
+    if (blocks.length === 0) {
+        console.log("No blocks found in formation text");
+        return null;
+    }
+    
+    console.log("--- Scanned Blocks ---");
+    for (const b of blocks) {
+        console.log(`Block at (${b.x}, ${b.z}) rotation ${b.rot}`);
+    }
+    
+    const originBlock = findOriginBlock(blocks);
+    
+    if (originBlock === null) {
+        console.log("Could not find a block that originated at (0,0).");
+        return null;
+    }
+    
+    const scannedRotation = originBlock.rot % 4;
+    const facing = DIRECTIONS[scannedRotation];
+    
+    console.log(`Original cluster facing direction: ${facing} (rotation ${scannedRotation})`);
+    return facing;
+}
+
+function adjustCoordinatesForDirection(x, z, detectedDirection) {
+    // Convert coordinates based on detected direction
+    // Assuming North is the default (neg z, pos x)
+    switch (detectedDirection) {
+        case "North": // Default, no change needed
+            return [x, z];
+        case "West": // Rotate 90 degrees counterclockwise
+            return [z, -x];
+        case "South": // Rotate 180 degrees
+            return [-x, -z];
+        case "East": // Rotate 90 degrees clockwise
+            return [-z, x];
+        default:
+            return [x, z]; // Default to North if unknown
+    }
+}
