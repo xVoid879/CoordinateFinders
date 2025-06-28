@@ -589,7 +589,7 @@ async function handleOutputCanvasClick(e) {
     
     // Check if confidence is below 70%
     let confidence = parseFloat(resultText.match(/\(([\d.]+)%\)/)?.[1] || '0');
-    if (confidence < 70) {
+    if (confidence < 84) {
         // Store this square as having low confidence
         lowConfidenceSquares[squareKey] = {
             confidence: confidence,
