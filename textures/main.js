@@ -21,6 +21,8 @@ let cleanWarpedCanvas = null; // For storing the warped image before grid lines
 // --- TensorFlow.js Model Integration ---
 let tfModel = null;
 let classNames = ['0', '1', '2', '3']; // Update if your model uses different class names
+let lowConfidenceSquares = {}; // Track squares with confidence below 70%
+
 async function loadModel() {
     try {
         // Adjust the model path if it's not directly in the root
@@ -387,6 +389,7 @@ function resetPoints() {
     points = getDefaultPoints(); // Get default initial points
     lastSelectedPoint = 0; // Select the first point
     squareTexts = {}; // Clear all text labels and their values
+    lowConfidenceSquares = {}; // Clear low confidence squares tracking
     drawInput(); // Redraw input canvas
     drawGridOverlay(); // Redraw the grid overlay without labels
     applyPerspectiveTransform(); // Re-apply transform
@@ -557,6 +560,11 @@ async function handleOutputCanvasClick(e) {
     // Create a unique key for the clicked square
     let squareKey = `${i},${j}`;
 
+    // Check if this square has already been tested and found to have low confidence
+    if (lowConfidenceSquares[squareKey]) {
+        return; // Don't allow clicking on squares with known low confidence
+    }
+
     // If the square already has text, clear its data and remove the text
     if (squareTexts[squareKey]) {
         delete squareTexts[squareKey]; // Remove the text data for the square
@@ -578,6 +586,21 @@ async function handleOutputCanvasClick(e) {
 
     // Run AI prediction and update the square's text with the result
     let resultText = await runOnSquare(cropCanvas, { i, j, x, y });
+    
+    // Check if confidence is below 70%
+    let confidence = parseFloat(resultText.match(/\(([\d.]+)%\)/)?.[1] || '0');
+    if (confidence < 70) {
+        // Store this square as having low confidence
+        lowConfidenceSquares[squareKey] = {
+            confidence: confidence,
+            class: resultText.split(' ')[0]
+        };
+        // Remove the text and don't allow clicking on low confidence squares
+        delete squareTexts[squareKey];
+        drawGridOverlay(); // Redraw grid without the text
+        return;
+    }
+    
     squareTexts[squareKey] = resultText;
     drawGridOverlay(); // Redraw grid with prediction result
 
@@ -670,6 +693,33 @@ function drawGridOverlay() {
         ctx.fillStyle = 'cyan';
         ctx.fillText(`(${i},${j})`, centerX, centerY + 10);
     }
+
+    // Draw visual overlay for squares with low confidence
+    for (let key in lowConfidenceSquares) {
+        let [i, j] = key.split(',').map(Number); // Parse grid indices from key
+
+        // Calculate the position of the current grid square
+        let tlx = squarePoints[0][0] + i * squareSize;
+        let tly = squarePoints[0][1] + j * squareSize;
+
+        // Draw a semi-transparent red overlay to indicate low confidence
+        ctx.fillStyle = 'rgba(255, 0, 0, 0.3)';
+        ctx.fillRect(tlx, tly, squareSize, squareSize);
+
+        // Draw a red border around the square
+        ctx.strokeStyle = 'red';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(tlx, tly, squareSize, squareSize);
+
+        // Add text indicating low confidence
+        let centerX = tlx + squareSize / 2;
+        let centerY = tly + squareSize / 2;
+        ctx.font = `${Math.round(squareSize / 8)}px Arial`;
+        ctx.fillStyle = 'red';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('Low Confidence', centerX, centerY);
+    }
     ctx.restore(); // Restore saved canvas state
 }
 
@@ -679,6 +729,8 @@ function updateLabelsOnImageChange() {
 
     // Clear existing labels
     squareTexts = {};
+    // Clear low confidence squares tracking
+    lowConfidenceSquares = {};
 
     // Redraw the grid overlay to reflect the new image
     drawGridOverlay();
