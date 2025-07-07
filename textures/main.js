@@ -560,10 +560,7 @@ async function handleOutputCanvasClick(e) {
     // Create a unique key for the clicked square
     let squareKey = `${i},${j}`;
 
-    // Check if this square has already been tested and found to have low confidence
-    if (lowConfidenceSquares[squareKey]) {
-        return; // Don't allow clicking on squares with known low confidence
-    }
+    
 
     // If the square already has text, clear its data and remove the text
     if (squareTexts[squareKey]) {
@@ -821,9 +818,9 @@ function handleGenerate() {
 
     // Retrieve coordinate inputs for relative offsets
     const { relativeX, relativeY, relativeZ } = getCoordinateInputs();
-
-    // Pass generationType, orientation, and coordinate inputs as arguments to generateRaw
-    generateRaw(orientation, generationType, relativeX, relativeY, relativeZ);
+    // Get the state of the direction correction checkbox
+    const directionCorrectionEnabled = document.getElementById('directionCorrectionCheckbox')?.checked ?? true;
+    generateRaw(orientation, generationType, relativeX, relativeY, relativeZ, directionCorrectionEnabled);
 }
 
 // Function to retrieve numerical values from relative coordinate input fields
@@ -835,7 +832,7 @@ function getCoordinateInputs() {
     return { relativeX, relativeY, relativeZ };
 }
 
-function generateRaw(orientation = 'wall', type = 'raw',relativeX, relativeY, relativeZ) {
+function generateRaw(orientation = 'wall', type = 'raw', relativeX, relativeY, relativeZ, directionCorrectionEnabled = true) {
     if (!squareDst || Object.keys(squareTexts).length === 0) {
         showMessageBox('No detected squares found. Please click on some squares in the warped output to run detection first.');
         return;
@@ -954,7 +951,7 @@ function generateRaw(orientation = 'wall', type = 'raw',relativeX, relativeY, re
         finalCoordZ += relativeZ;
 
         // Adjust coordinates based on detected direction (only for X and Z)
-        if (detectedDirection && detectedDirection !== "North") {
+        if (directionCorrectionEnabled && detectedDirection && detectedDirection !== "North") {
             [finalCoordX, finalCoordZ] = adjustCoordinatesForDirection(finalCoordX, finalCoordZ, detectedDirection);
         }
 
@@ -967,10 +964,14 @@ function generateRaw(orientation = 'wall', type = 'raw',relativeX, relativeY, re
     }
 
     // Display the generated output in the dedicated section
+    
     const directionInfo = detectedDirection ? ` (Adjusted for ${detectedDirection} facing)` : '';
     const title = `${orientation.charAt(0).toUpperCase() + orientation.slice(1)} ${type.charAt(0).toUpperCase() + type.slice(1)} Data${directionInfo}`;
+    if (directionCorrectionEnabled) {
     displayGeneratedOutput(output, title);
-
+    } else {
+        displayGeneratedOutput(output,' ');
+    }
     console.log('Generated data:', output);
 }
 
