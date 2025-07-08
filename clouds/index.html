@@ -156,6 +156,7 @@
   <h2>Pixel Viewer and Editor</h2>
   <div>
     <label>Select Version (Reset drawing by pressing the version again):</label>
+    <button onclick="rotateViewer()">↻ Rotate</button>
     <button onclick="loadViewer('old')">Old (25w20a-)</button>
     <button onclick="loadViewer('new')">New (25w21a+)</button>
   </div>
@@ -374,6 +375,27 @@
     link.href = viewerCanvas.toDataURL();
     link.click();
   }
+
+  function rotateViewer() {
+  const tempCanvas = document.createElement('canvas');
+  const tempCtx = tempCanvas.getContext('2d');
+
+  const w = viewerCanvas.width;
+  const h = viewerCanvas.height;
+
+  tempCanvas.width = h;
+  tempCanvas.height = w;
+
+  tempCtx.translate(h, 0);
+  tempCtx.rotate(Math.PI / 2);
+  tempCtx.drawImage(viewerCanvas, 0, 0);
+
+  viewerCanvas.width = h;
+  viewerCanvas.height = w;
+  viewerCtx.clearRect(0, 0, h, w);
+  viewerCtx.drawImage(tempCanvas, 0, 0);
+}
+  
 </script>
 
 </body>
