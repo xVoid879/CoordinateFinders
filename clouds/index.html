@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -61,19 +62,15 @@
       color: #ffffff;
     }
 
-    textarea, input[type="number"] {
+    textarea {
       width: 100%;
+      height: 150px;
       font-family: monospace;
       background-color: #1e1e1e;
       color: #dcdcdc;
       border: 1px solid #444;
       padding: 8px;
       border-radius: 5px;
-      box-sizing: border-box;
-    }
-
-    textarea {
-      height: 150px;
     }
 
     #results {
@@ -139,10 +136,8 @@
 01??
 0110
 0111
-110?"></textarea>
-
-    <label for="tickInput">Enter Ticks (optional, affects X):</label>
-    <input type="number" id="tickInput" placeholder="e.g., 12345" />
+110?
+..."></textarea>
   </div>
 
   <div class="image-select">
@@ -204,6 +199,10 @@
     return m2;
   }
 
+  function mirrorMatrix(m) {
+    return m.map(row => row.slice().reverse());
+  }
+
   function matricesEqual(a, b) {
     if (a.length !== b.length) return false;
     for (let i = 0; i < a.length; i++) {
@@ -234,8 +233,8 @@
     const coords = [];
     const blocks = fast ? 8 : 12;
     const gridSize = blocks * 256;
-    const zOffset = pixelZ * blocks;
     const intQuotient = Math.floor(spawnRange / gridSize);
+    const zOffset = pixelZ * blocks;
 
     let min_i = -intQuotient - 1;
     if ((gridSize * min_i) - 4 + zOffset < -spawnRange) min_i += 1;
@@ -265,6 +264,7 @@
 
         let patterns = [];
         let matches = [[], [], [], []];
+
         let currentPattern = pattern;
 
         for (let o = 0; o < 4; o++) {
@@ -280,6 +280,7 @@
                   let pixel_y = (y + i) % height;
                   let pixelData = ctx.getImageData(pixel_x, pixel_y, 1, 1).data;
                   let a = pixelData[3];
+
                   let patternChar = currentPattern[i][j];
                   if (patternChar !== '?' && ((a !== 255) === Boolean(Number(patternChar)))) {
                     match = false;
@@ -306,10 +307,6 @@
         resultsDiv.textContent = 'Please enter a pattern.';
         return;
       }
-
-      let ticks = parseInt(document.getElementById('tickInput').value);
-      if (isNaN(ticks)) ticks = null;
-
       let inputPattern = parsePattern(patternText);
       let { patterns, matches } = await findCloudPattern(imagePaths[selectedVersion], inputPattern);
       let totalMatches = matches.reduce((acc, arr) => acc + arr.length, 0);
@@ -331,28 +328,7 @@
 
           const validZCoords = getValidCoords(10000, match[1], false);
           outputText += `Estimated Z coordinates (SpawnRange:10000):\n`;
-          outputText += validZCoords.join(', ') + '\n';
-
-          if (ticks !== null) {
-            const blocksPerTick = 0.03;
-            const cloudOffsetX = Math.floor(ticks * blocksPerTick);
-            const textureWidth = 512;
-            const blobSize = selectedVersion === 'old' ? 12 : 8;
-            const blocksPerTexture = textureWidth * blobSize;
-            const pixelX = match[0];
-            const rawX = pixelX * blobSize;
-            let possibleXs = [];
-
-            for (let i = -2; i <= 2; i++) {
-              let adjusted = rawX - cloudOffsetX + (i * blocksPerTexture);
-              possibleXs.push(adjusted);
-            }
-
-            outputText += `Estimated X coordinates (tick=${ticks}):\n`;
-            outputText += possibleXs.join(', ') + '\n';
-          }
-
-          outputText += '\n';
+          outputText += validZCoords.join(', ') + '\n\n';
         }
       }
 
@@ -361,7 +337,7 @@
       resultsDiv.textContent = 'Error: ' + err;
     }
   };
-
+  
   const viewerCanvas = document.getElementById('viewerCanvas');
   const viewerCtx = viewerCanvas.getContext('2d');
   let viewerImage = new Image();
@@ -385,9 +361,9 @@
     const y = Math.floor(e.clientY - rect.top);
     document.getElementById('pixelCoords').textContent = `Pixel: (${x}, ${y})`;
     if (drawing) {
-      viewerCtx.fillStyle = 'red';
-      viewerCtx.fillRect(x - 2, y - 2, 5, 5);
-    }
+  viewerCtx.fillStyle = 'red';
+  viewerCtx.fillRect(x - 2, y - 2, 5, 5); 
+}
   });
 
   viewerCanvas.addEventListener('mousedown', () => drawing = true);
@@ -402,24 +378,25 @@
   }
 
   function rotateViewer() {
-    const tempCanvas = document.createElement('canvas');
-    const tempCtx = tempCanvas.getContext('2d');
+  const tempCanvas = document.createElement('canvas');
+  const tempCtx = tempCanvas.getContext('2d');
 
-    const w = viewerCanvas.width;
-    const h = viewerCanvas.height;
+  const w = viewerCanvas.width;
+  const h = viewerCanvas.height;
 
-    tempCanvas.width = h;
-    tempCanvas.height = w;
+  tempCanvas.width = h;
+  tempCanvas.height = w;
 
-    tempCtx.translate(h, 0);
-    tempCtx.rotate(Math.PI / 2);
-    tempCtx.drawImage(viewerCanvas, 0, 0);
+  tempCtx.translate(h, 0);
+  tempCtx.rotate(Math.PI / 2);
+  tempCtx.drawImage(viewerCanvas, 0, 0);
 
-    viewerCanvas.width = h;
-    viewerCanvas.height = w;
-    viewerCtx.clearRect(0, 0, h, w);
-    viewerCtx.drawImage(tempCanvas, 0, 0);
-  }
+  viewerCanvas.width = h;
+  viewerCanvas.height = w;
+  viewerCtx.clearRect(0, 0, h, w);
+  viewerCtx.drawImage(tempCanvas, 0, 0);
+}
+  
 </script>
 
 </body>
