@@ -160,6 +160,7 @@
     <button onclick="loadViewer('old')">Old (25w20a-)</button>
     <button onclick="loadViewer('new')">New (25w21a+)</button>
     <button onclick="rotateViewer()">↻ Rotate</button>
+    <button onclick="highlightPixel()">Highlight Pixel Coords</button>
   </div>
   <canvas id="viewerCanvas" width="512" height="512" style="cursor: crosshair;"></canvas>
   <div>
@@ -395,6 +396,26 @@
   viewerCanvas.height = w;
   viewerCtx.clearRect(0, 0, h, w);
   viewerCtx.drawImage(tempCanvas, 0, 0);
+}
+
+  function highlightPixel() {
+  const x = parseInt(document.getElementById('inputX').value);
+  const y = parseInt(document.getElementById('inputY').value);
+
+  if (isNaN(x) || isNaN(y)) {
+    alert('Please enter valid numeric X and Y coordinates.');
+    return;
+  }
+
+  viewerCtx.clearRect(0, 0, viewerCanvas.width, viewerCanvas.height);
+  viewerCtx.drawImage(viewerImage, 0, 0);
+
+
+  viewerCtx.beginPath();
+  viewerCtx.strokeStyle = 'lime';
+  viewerCtx.lineWidth = 2;
+  viewerCtx.arc(x, y, 10, 0, 2 * Math.PI); 
+  viewerCtx.stroke();
 }
   
 </script>
