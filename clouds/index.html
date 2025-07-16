@@ -1,4 +1,4 @@
-
+<!-- Full HTML script with Fancy/Fast Clouds buttons instead of Find Pattern -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -9,7 +9,6 @@
     :root {
       color-scheme: dark;
     }
-
     body {
       background-color: #121212;
       color: #e0e0e0;
@@ -17,7 +16,6 @@
       margin: 0;
       padding: 0;
     }
-
     header {
       background-color: #1e1e1e;
       padding: 20px;
@@ -26,17 +24,14 @@
       justify-content: space-between;
       align-items: center;
     }
-
     h1 {
       margin: 0;
       font-size: 28px;
     }
-
     nav {
       display: flex;
       gap: 10px;
     }
-
     nav a button {
       background-color: #333;
       color: #f1f1f1;
@@ -47,21 +42,17 @@
       cursor: pointer;
       transition: background-color 0.2s;
     }
-
     nav a button:hover {
       background-color: #444;
     }
-
     main {
       padding: 30px;
       max-width: 800px;
       margin: auto;
     }
-
     h2 {
       color: #ffffff;
     }
-
     textarea {
       width: 100%;
       height: 150px;
@@ -72,7 +63,6 @@
       padding: 8px;
       border-radius: 5px;
     }
-
     #results {
       white-space: pre-wrap;
       margin-top: 20px;
@@ -81,7 +71,6 @@
       padding: 10px;
       border-radius: 5px;
     }
-
     button {
       background-color: #333;
       color: #f1f1f1;
@@ -93,20 +82,16 @@
       cursor: pointer;
       transition: background-color 0.2s;
     }
-
     button:hover {
       background-color: #444;
     }
-
     .image-select {
       margin-top: 10px;
     }
-
     canvas {
       margin-top: 10px;
       border: 1px solid #555;
     }
-
     label {
       display: block;
       margin: 10px 0 4px;
@@ -147,7 +132,8 @@
   </div>
 
   <div>
-    <button id="runButton">🔍 Find Pattern</button>
+    <button onclick="runFinder(false)">☁️ Fancy Clouds</button>
+    <button onclick="runFinder(true)">⚡ Fast Clouds</button>
   </div>
 
   <div id="results"></div>
@@ -160,9 +146,6 @@
     <button onclick="loadViewer('old')">Old (25w20a-)</button>
     <button onclick="loadViewer('new')">New (25w21a+)</button>
     <button onclick="rotateViewer()">↻ Rotate</button>
-    <button onclick="highlightPixel()">Highlight Pixel Coords</button>
-    <input type="number" id="inputX" placeholder="X" style="width: 60px;" />
-    <input type="number" id="inputY" placeholder="Y" style="width: 60px;" />
   </div>
   <canvas id="viewerCanvas" width="512" height="512" style="cursor: crosshair;"></canvas>
   <div>
@@ -200,10 +183,6 @@
       }
     }
     return m2;
-  }
-
-  function mirrorMatrix(m) {
-    return m.map(row => row.slice().reverse());
   }
 
   function matricesEqual(a, b) {
@@ -283,7 +262,6 @@
                   let pixel_y = (y + i) % height;
                   let pixelData = ctx.getImageData(pixel_x, pixel_y, 1, 1).data;
                   let a = pixelData[3];
-
                   let patternChar = currentPattern[i][j];
                   if (patternChar !== '?' && ((a !== 255) === Boolean(Number(patternChar)))) {
                     match = false;
@@ -302,7 +280,7 @@
     });
   }
 
-  document.getElementById('runButton').onclick = async () => {
+  async function runFinder(fastMode) {
     resultsDiv.textContent = 'Processing...';
     try {
       let patternText = patternInput.value;
@@ -328,9 +306,8 @@
           outputText += `Input oriented: ${inputDir}, inserted from TOP\n`;
           outputText += `Match at (x=${match[0]}, y=${match[1]}), pattern:\n`;
           outputText += patterns[i].map(row => row.join('')).join('\n') + '\n';
-
-          const validZCoords = getValidCoords(10000, match[1], false);
-          outputText += `Estimated Z coordinates (SpawnRange:10000):\n`;
+          const validZCoords = getValidCoords(10000, match[1], fastMode);
+          outputText += `Estimated Z coordinates (${fastMode ? 'Fast' : 'Fancy'} Cloud, SpawnRange:10000):\n`;
           outputText += validZCoords.join(', ') + '\n\n';
         }
       }
@@ -339,8 +316,8 @@
     } catch (err) {
       resultsDiv.textContent = 'Error: ' + err;
     }
-  };
-  
+  }
+
   const viewerCanvas = document.getElementById('viewerCanvas');
   const viewerCtx = viewerCanvas.getContext('2d');
   let viewerImage = new Image();
@@ -364,9 +341,9 @@
     const y = Math.floor(e.clientY - rect.top);
     document.getElementById('pixelCoords').textContent = `Pixel: (${x}, ${y})`;
     if (drawing) {
-  viewerCtx.fillStyle = 'red';
-  viewerCtx.fillRect(x - 2, y - 2, 5, 5); 
-}
+      viewerCtx.fillStyle = 'red';
+      viewerCtx.fillRect(x - 2, y - 2, 5, 5);
+    }
   });
 
   viewerCanvas.addEventListener('mousedown', () => drawing = true);
@@ -381,45 +358,20 @@
   }
 
   function rotateViewer() {
-  const tempCanvas = document.createElement('canvas');
-  const tempCtx = tempCanvas.getContext('2d');
-
-  const w = viewerCanvas.width;
-  const h = viewerCanvas.height;
-
-  tempCanvas.width = h;
-  tempCanvas.height = w;
-
-  tempCtx.translate(h, 0);
-  tempCtx.rotate(Math.PI / 2);
-  tempCtx.drawImage(viewerCanvas, 0, 0);
-
-  viewerCanvas.width = h;
-  viewerCanvas.height = w;
-  viewerCtx.clearRect(0, 0, h, w);
-  viewerCtx.drawImage(tempCanvas, 0, 0);
-}
-
-  function highlightPixel() {
-  const x = parseInt(document.getElementById('inputX').value);
-  const y = parseInt(document.getElementById('inputY').value);
-
-  if (isNaN(x) || isNaN(y)) {
-    alert('Please enter valid numeric X and Y coordinates.');
-    return;
+    const tempCanvas = document.createElement('canvas');
+    const tempCtx = tempCanvas.getContext('2d');
+    const w = viewerCanvas.width;
+    const h = viewerCanvas.height;
+    tempCanvas.width = h;
+    tempCanvas.height = w;
+    tempCtx.translate(h, 0);
+    tempCtx.rotate(Math.PI / 2);
+    tempCtx.drawImage(viewerCanvas, 0, 0);
+    viewerCanvas.width = h;
+    viewerCanvas.height = w;
+    viewerCtx.clearRect(0, 0, h, w);
+    viewerCtx.drawImage(tempCanvas, 0, 0);
   }
-
-  viewerCtx.clearRect(0, 0, viewerCanvas.width, viewerCanvas.height);
-  viewerCtx.drawImage(viewerImage, 0, 0);
-
-
-  viewerCtx.beginPath();
-  viewerCtx.strokeStyle = 'lime';
-  viewerCtx.lineWidth = 2;
-  viewerCtx.arc(x, y, 10, 0, 2 * Math.PI); 
-  viewerCtx.stroke();
-}
-  
 </script>
 
 </body>
