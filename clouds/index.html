@@ -1,4 +1,3 @@
-<!-- Full HTML script with Fancy/Fast Clouds buttons instead of Find Pattern -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -146,6 +145,9 @@
     <button onclick="loadViewer('old')">Old (25w20a-)</button>
     <button onclick="loadViewer('new')">New (25w21a+)</button>
     <button onclick="rotateViewer()">↻ Rotate</button>
+    <button onclick="highlightPixel()">Highlight Pixel Coords</button>
+    <input type="number" id="inputX" placeholder="X" style="width: 60px;" />
+    <input type="number" id="inputY" placeholder="Y" style="width: 60px;" />    
   </div>
   <canvas id="viewerCanvas" width="512" height="512" style="cursor: crosshair;"></canvas>
   <div>
@@ -372,6 +374,26 @@
     viewerCtx.clearRect(0, 0, h, w);
     viewerCtx.drawImage(tempCanvas, 0, 0);
   }
+
+  function highlightPixel() {
+  const x = parseInt(document.getElementById('inputX').value);
+  const y = parseInt(document.getElementById('inputY').value);
+
+  if (isNaN(x) || isNaN(y)) {
+    alert('Please enter valid numeric X and Y coordinates.');
+    return;
+  }
+
+  viewerCtx.clearRect(0, 0, viewerCanvas.width, viewerCanvas.height);
+  viewerCtx.drawImage(viewerImage, 0, 0);
+
+
+  viewerCtx.beginPath();
+  viewerCtx.strokeStyle = 'lime';
+  viewerCtx.lineWidth = 2;
+  viewerCtx.arc(x, y, 10, 0, 2 * Math.PI); 
+  viewerCtx.stroke();
+}  
 </script>
 
 </body>
