@@ -96,6 +96,14 @@
       margin: 10px 0 4px;
       font-weight: bold;
     }
+    input[type="number"] {
+      background-color: #1e1e1e;
+      color: #dcdcdc;
+      border: 1px solid #444;
+      border-radius: 4px;
+      padding: 6px;
+      margin-bottom: 10px;
+    }
   </style>
 </head>
 <body>
@@ -155,6 +163,18 @@
     <p id="pixelCoords">Hover over the image to see coordinates.</p>
     <button onclick="downloadCanvas()">Download Edited Image</button>
   </div>
+  <hr />
+<h2>Cloud Movement Estimator</h2>
+<div>
+  <label for="zInput">Z Coordinate of Cloud:</label>
+  <input type="number" id="zInput" placeholder="e.g. -4" />
+</div>
+<div>
+  <label for="tickInput">Estimated Ticks Since Minecraft Launch:</label>
+  <input type="number" id="tickInput" placeholder="e.g. 6000" />
+</div>
+<button onclick="estimateX()">Estimate X</button>
+<p id="xEstimateResult">X estimate will appear here.</p>
 </main>
 
 <script>
@@ -395,6 +415,20 @@
   viewerCtx.arc(x, y, 10, 0, 2 * Math.PI); 
   viewerCtx.stroke();
 }  
+
+function estimateX() {
+  const z = parseFloat(document.getElementById("zInput").value);
+  const t = parseFloat(document.getElementById("tickInput").value);
+
+  if (isNaN(z) || isNaN(t)) {
+    document.getElementById("xEstimateResult").textContent = "Please enter valid numbers.";
+    return;
+  }
+
+  const x = z - (0.03 * t) + 4;
+  const roundedX = Math.round(x * 1000) / 1000;
+  document.getElementById("xEstimateResult").textContent = `Estimated X Coordinate: ${roundedX}`;
+}
 </script>
 
 </body>
