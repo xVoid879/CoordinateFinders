@@ -326,28 +326,20 @@
           outputText += `Input oriented: ${inputDir}, inserted from TOP\n`;
           outputText += `Match at (x=${match[0]}, y=${match[1]}), pattern:\n`;
           outputText += patterns[i].map(row => row.join('')).join('\n') + '\n';
-          const minRange = parseInt(document.getElementById('minSpawnRange').value) || 10000;
-          const maxRange = parseInt(document.getElementById('maxSpawnRange').value) || 10000;
-
-          let allCoords = [];
-          for (let range of [minRange, maxRange]) {
-           allCoords = allCoords.concat(getValidCoords(range, match[1], fastMode));
-            allCoords = allCoords.concat(getValidCoords(-range, match[1], fastMode));
-            }
-
-
-        const uniqueCoords = [...new Set(allCoords)].sort((a, b) => a - b);
-        outputText += `Estimated Z coordinates (${fastMode ? 'Fast' : 'Fancy'} Cloud, Range: ±${Math.max(minRange, maxRange)}):\n`;
-        outputText += uniqueCoords.join(', ') + '\n\n';
-                  outputText += validZCoords.join(', ') + '\n\n';
-                }
-              }
+         const minRange = parseInt(document.getElementById('minSpawnRange').value);
+        const maxRange = parseInt(document.getElementById('maxSpawnRange').value);
+        const usedMin = isNaN(minRange) ? 10000 : minRange;
+        const usedMax = isNaN(maxRange) ? 10000 : maxRange;
         
-              resultsDiv.textContent = outputText;
-            } catch (err) {
-              resultsDiv.textContent = 'Error: ' + err;
-            }
-          }
+        let allCoords = [];
+        for (let range of [usedMin, usedMax]) {
+          allCoords = allCoords.concat(getValidCoords(range, match[1], fastMode));
+          allCoords = allCoords.concat(getValidCoords(-range, match[1], fastMode));
+        }
+        
+        const validZCoords = [...new Set(allCoords)].sort((a, b) => a - b);
+        outputText += `Estimated Z coordinates (${fastMode ? 'Fast' : 'Fancy'} Cloud, Ranges: ±${usedMin}, ±${usedMax}):\n`;
+        outputText += validZCoords.join(', ') + '\n\n';
 
   const viewerCanvas = document.getElementById('viewerCanvas');
   const viewerCtx = viewerCanvas.getContext('2d');
