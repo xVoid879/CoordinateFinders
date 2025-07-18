@@ -133,6 +133,12 @@
   </div>
 
   <div>
+  <label>Min SpawnRange:</label>
+  <input type="number" id="minSpawnRange" placeholder="Default 10000" style="width: 120px;" />
+  <label>Max SpawnRange:</label>
+  <input type="number" id="maxSpawnRange" placeholder="Default 10000" style="width: 120px;" />
+  </div>
+  <div>
     <label>Select Graphics Setting to Run Pattern 🔍:</label>
     <button onclick="runFinder(false)">☁️ Fancy Clouds</button>
     <button onclick="runFinder(true)">⚡ Fast Clouds</button>
@@ -320,17 +326,28 @@
           outputText += `Input oriented: ${inputDir}, inserted from TOP\n`;
           outputText += `Match at (x=${match[0]}, y=${match[1]}), pattern:\n`;
           outputText += patterns[i].map(row => row.join('')).join('\n') + '\n';
-          const validZCoords = getValidCoords(10000, match[1], fastMode);
-          outputText += `Estimated Z coordinates (${fastMode ? 'Fast' : 'Fancy'} Cloud, SpawnRange:10000):\n`;
-          outputText += validZCoords.join(', ') + '\n\n';
-        }
-      }
+          const minRange = parseInt(document.getElementById('minSpawnRange').value) || 10000;
+          const maxRange = parseInt(document.getElementById('maxSpawnRange').value) || 10000;
 
-      resultsDiv.textContent = outputText;
-    } catch (err) {
-      resultsDiv.textContent = 'Error: ' + err;
-    }
-  }
+          let allCoords = [];
+          for (let range of [minRange, maxRange]) {
+           allCoords = allCoords.concat(getValidCoords(range, match[1], fastMode));
+            allCoords = allCoords.concat(getValidCoords(-range, match[1], fastMode));
+            }
+
+
+        const uniqueCoords = [...new Set(allCoords)].sort((a, b) => a - b);
+        outputText += `Estimated Z coordinates (${fastMode ? 'Fast' : 'Fancy'} Cloud, Range: ±${Math.max(minRange, maxRange)}):\n`;
+        outputText += uniqueCoords.join(', ') + '\n\n';
+                  outputText += validZCoords.join(', ') + '\n\n';
+                }
+              }
+        
+              resultsDiv.textContent = outputText;
+            } catch (err) {
+              resultsDiv.textContent = 'Error: ' + err;
+            }
+          }
 
   const viewerCanvas = document.getElementById('viewerCanvas');
   const viewerCtx = viewerCanvas.getContext('2d');
