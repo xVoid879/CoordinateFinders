@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -6,7 +7,9 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <link rel="icon" href="/rc.png" type="image/png">
   <style>
-    :root { color-scheme: dark; }
+    :root {
+      color-scheme: dark;
+    }
     body {
       background-color: #121212;
       color: #e0e0e0;
@@ -22,7 +25,10 @@
       justify-content: space-between;
       align-items: center;
     }
-    h1 { margin: 0; font-size: 28px; }
+    h1 {
+      margin: 0;
+      font-size: 28px;
+    }
     nav {
       display: flex;
       gap: 10px;
@@ -37,13 +43,17 @@
       cursor: pointer;
       transition: background-color 0.2s;
     }
-    nav a button:hover { background-color: #444; }
+    nav a button:hover {
+      background-color: #444;
+    }
     main {
       padding: 30px;
       max-width: 800px;
       margin: auto;
     }
-    h2 { color: #ffffff; }
+    h2 {
+      color: #ffffff;
+    }
     textarea {
       width: 100%;
       height: 150px;
@@ -73,7 +83,12 @@
       cursor: pointer;
       transition: background-color 0.2s;
     }
-    button:hover { background-color: #444; }
+    button:hover {
+      background-color: #444;
+    }
+    .image-select {
+      margin-top: 10px;
+    }
     canvas {
       margin-top: 10px;
       border: 1px solid #555;
@@ -111,6 +126,12 @@
 ..."></textarea>
   </div>
 
+  <div class="image-select">
+    <label>Select Cloud Version:</label>
+    <button data-version="old">25w20a- (Old)</button>
+    <button data-version="new">25w21a+ (New)</button>
+  </div>
+
   <div>
     <label>Select Graphics Setting to Run Pattern 🔍:</label>
     <button onclick="runFinder(false)">☁️ Fancy Clouds</button>
@@ -123,12 +144,13 @@
   <hr />
   <h2>Pixel Viewer and Editor</h2>
   <div>
-    <label>Cloud Image Editor:</label>
-    <button onclick="loadViewer()">Load Cloud</button>
+    <label>Select Version (Reset drawing by pressing the version again):</label>
+    <button onclick="loadViewer('old')">Old (25w20a-)</button>
+    <button onclick="loadViewer('new')">New (25w21a+)</button>
     <button onclick="rotateViewer()">↻ Rotate</button>
     <button onclick="highlightPixel()">Highlight Pixel Coords</button>
     <input type="number" id="inputX" placeholder="X" style="width: 60px;" />
-    <input type="number" id="inputY" placeholder="Y" style="width: 60px;" />
+    <input type="number" id="inputY" placeholder="Y" style="width: 60px;" />    
   </div>
   <canvas id="viewerCanvas" width="512" height="512" style="cursor: crosshair;"></canvas>
   <div>
@@ -136,23 +158,35 @@
     <button onclick="downloadCanvas()">Download Edited Image</button>
   </div>
   <hr/>
-  <h3>X Coordinate Tick Change from given Z</h3>
-  <div>
-    <label for="zGraphInput">Z Coordinate:</label>
-    <input type="number" id="zGraphInput" placeholder="Z" style="width: 100px;" />
-    <button onclick="plotXDrift()">Generate Graph</button>
-  </div>
-  <canvas id="xDriftChart" width="800" height="400"></canvas>
+<h3>X Coordinate Tick Change from given Z</h2>
+<div>
+  <h5>(If you have the X and Z Coordinate already you can find out if they restarted the game or not. [IDK Why you would need this but it's cool])</h3>
+  <label for="zGraphInput">Z Coordinate:</label>
+  <input type="number" id="zGraphInput" placeholder="Z" style="width: 100px;" />
+  <button onclick="plotXDrift()">Generate Graph</button>
+</div>
+<canvas id="xDriftChart" width="800" height="400"></canvas>
 </main>
 
 <script>
   const directionMap = ["north", "west", "south", "east"];
-  const imagePath = 'images/clouds.png'; // only one version rn
+  const imagePaths = {
+    old: 'image/clouds_old.png',
+    new: 'image/clouds.png'
+  };
 
+  let selectedVersion = 'old';
   const patternInput = document.getElementById('patternInput');
   const resultsDiv = document.getElementById('results');
   const canvas = document.getElementById('imageCanvas');
   const ctx = canvas.getContext('2d');
+
+  document.querySelectorAll('.image-select button').forEach(button => {
+    button.onclick = () => {
+      selectedVersion = button.dataset.version;
+      resultsDiv.textContent = `Selected version: ${selectedVersion}`;
+    };
+  });
 
   function rotate90Matrix(m) {
     let m2 = [];
@@ -221,55 +255,38 @@
         ctx.clearRect(0, 0, img.width, img.height);
         ctx.drawImage(img, 0, 0);
 
-        const width = img.width;
-        const height = img.height;
+        let width = img.width;
+        let height = img.height;
 
-        const patterns = [];
-        const matches = [[], [], [], []];
+        let patterns = [];
+        let matches = [[], [], [], []];
 
         let currentPattern = pattern;
+
         for (let o = 0; o < 4; o++) {
           if (o !== 0) currentPattern = rotate90Matrix(currentPattern);
           patterns.push(currentPattern);
 
           for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-        let match = true;
-        outer: for (let i = 0; i < currentPattern.length; i++) {
-            for (let j = 0; j < currentPattern[i].length; j++) {
-                const pixel_x = (x + j) % width;
-                const pixel_y = (y + i) % height;
-
-                const pixelData = ctx.getImageData(pixel_x, pixel_y, 1, 1).data;
-                const r = pixelData[0]; 
-                const g = pixelData[1]; 
-                const b = pixelData[2]; 
-
-                const patternChar = currentPattern[i][j];
-
-                if (patternChar === '?') {
-                    continue; 
+            for (let x = 0; x < width; x++) {
+              let match = true;
+              outer: for (let i = 0; i < currentPattern.length; i++) {
+                for (let j = 0; j < currentPattern[i].length; j++) {
+                  let pixel_x = (x + j) % width;
+                  let pixel_y = (y + i) % height;
+                  let pixelData = ctx.getImageData(pixel_x, pixel_y, 1, 1).data;
+                  let a = pixelData[3];
+                  let patternChar = currentPattern[i][j];
+                  if (patternChar !== '?' && ((a !== 255) === Boolean(Number(patternChar)))) {
+                    match = false;
+                    break outer;
+                  }
                 }
-
-                const isImagePixelWhite = (r === 255 && g === 255 && b === 255);
-                const isImagePixelBlack = (r === 0 && g === 0 && b === 0);
-
-                if (patternChar === '1') { 
-                    if (!isImagePixelWhite) { 
-                        match = false; 
-                        break outer; 
-                    }
-                } else if (patternChar === '0') { 
-                    if (!isImagePixelBlack) { 
-                        match = false; 
-                        break outer; 
-                    }
-                }
+              }
+              if (match) matches[o].push([x, y]);
             }
+          }
         }
-        if (match) matches[o].push([x, y]);
-    }
-}
         resolve({ patterns, matches });
       };
       img.onerror = () => reject('Failed to load image: ' + imageSrc);
@@ -280,14 +297,14 @@
   async function runFinder(fastMode) {
     resultsDiv.textContent = 'Processing...';
     try {
-      const patternText = patternInput.value;
+      let patternText = patternInput.value;
       if (!patternText.trim()) {
         resultsDiv.textContent = 'Please enter a pattern.';
         return;
       }
-      const inputPattern = parsePattern(patternText);
-      const { patterns, matches } = await findCloudPattern(imagePath, inputPattern);
-      const totalMatches = matches.reduce((acc, arr) => acc + arr.length, 0);
+      let inputPattern = parsePattern(patternText);
+      let { patterns, matches } = await findCloudPattern(imagePaths[selectedVersion], inputPattern);
+      let totalMatches = matches.reduce((acc, arr) => acc + arr.length, 0);
 
       if (totalMatches === 0) {
         resultsDiv.textContent = 'Pattern not found';
@@ -297,14 +314,14 @@
       let outputText = `Got ${totalMatches} match${totalMatches > 1 ? 'es' : ''}\n\n`;
 
       for (let i = 0; i < matches.length; i++) {
-        for (const match of matches[i]) {
-          const directionInfo = determineDirection(inputPattern, patterns[i]);
-          const inputDir = directionInfo ? directionInfo.direction : 'unknown';
+        for (let match of matches[i]) {
+          let directionInfo = determineDirection(inputPattern, patterns[i]);
+          let inputDir = directionInfo ? directionInfo.direction : 'unknown';
           outputText += `Input oriented: ${inputDir}, inserted from TOP\n`;
           outputText += `Match at (x=${match[0]}, y=${match[1]}), pattern:\n`;
           outputText += patterns[i].map(row => row.join('')).join('\n') + '\n';
           const validZCoords = getValidCoords(10000, match[1], fastMode);
-          outputText += `Estimated Z coordinates (${fastMode ? 'Fast' : 'Fancy'} Cloud):\n`;
+          outputText += `Estimated Z coordinates (${fastMode ? 'Fast' : 'Fancy'} Cloud, SpawnRange:10000):\n`;
           outputText += validZCoords.join(', ') + '\n\n';
         }
       }
@@ -320,7 +337,8 @@
   let viewerImage = new Image();
   let drawing = false;
 
-  function loadViewer() {
+  function loadViewer(version) {
+    const imageSrc = imagePaths[version];
     viewerImage = new Image();
     viewerImage.crossOrigin = 'anonymous';
     viewerImage.onload = () => {
@@ -328,7 +346,7 @@
       viewerCanvas.height = viewerImage.height;
       viewerCtx.drawImage(viewerImage, 0, 0);
     };
-    viewerImage.src = imagePath;
+    viewerImage.src = imageSrc;
   }
 
   viewerCanvas.addEventListener('mousemove', (e) => {
@@ -370,69 +388,91 @@
   }
 
   function highlightPixel() {
-    const x = parseInt(document.getElementById('inputX').value);
-    const y = parseInt(document.getElementById('inputY').value);
-    if (isNaN(x) || isNaN(y)) {
-      alert('Please enter valid numeric X and Y coordinates.');
-      return;
-    }
-    viewerCtx.clearRect(0, 0, viewerCanvas.width, viewerCanvas.height);
-    viewerCtx.drawImage(viewerImage, 0, 0);
-    viewerCtx.beginPath();
-    viewerCtx.strokeStyle = 'lime';
-    viewerCtx.lineWidth = 2;
-    viewerCtx.arc(x, y, 10, 0, 2 * Math.PI);
-    viewerCtx.stroke();
+  const x = parseInt(document.getElementById('inputX').value);
+  const y = parseInt(document.getElementById('inputY').value);
+
+  if (isNaN(x) || isNaN(y)) {
+    alert('Please enter valid numeric X and Y coordinates.');
+    return;
   }
 
-  let chartInstance = null;
+  viewerCtx.clearRect(0, 0, viewerCanvas.width, viewerCanvas.height);
+  viewerCtx.drawImage(viewerImage, 0, 0);
 
-  function plotXDrift() {
-    const z = parseFloat(document.getElementById("zGraphInput").value);
-    if (isNaN(z)) {
-      alert("Please enter a valid Z coordinate.");
-      return;
-    }
 
-    const ticks = [];
-    const xValues = [];
-    for (let t = 0; t <= 24000; t += 100) {
-      ticks.push(t);
-      xValues.push(z - 0.03 * t + 4);
-    }
+  viewerCtx.beginPath();
+  viewerCtx.strokeStyle = 'lime';
+  viewerCtx.lineWidth = 2;
+  viewerCtx.arc(x, y, 10, 0, 2 * Math.PI); 
+  viewerCtx.stroke();
+}  
 
-    const ctx = document.getElementById("xDriftChart").getContext("2d");
-    if (chartInstance) chartInstance.destroy();
+let chartInstance = null;
 
-    chartInstance = new Chart(ctx, {
-      type: 'line',
-      data: {
-        labels: ticks,
-        datasets: [{
-          label: `Estimated X over time (Z = ${z})`,
-          data: xValues,
-          borderColor: 'skyblue',
-          fill: false,
-          tension: 0.1
-        }]
-      },
-      options: {
-        responsive: true,
-        plugins: {
-          legend: { display: true },
-          tooltip: {
-            callbacks: {
-              label: ctx => `X ≈ ${ctx.raw.toFixed(2)} at tick ${ctx.label}`
+function plotXDrift() {
+  const z = parseFloat(document.getElementById("zGraphInput").value);
+  if (isNaN(z)) {
+    alert("Please enter a valid Z coordinate.");
+    return;
+  }
+
+  const ticks = [];
+  const xValues = [];
+  for (let t = 0; t <= 24000; t += 100) {
+    ticks.push(t);
+    xValues.push(z - 0.03 * t + 4); // x = z - 0.03 * t + 4
+  }
+
+  const ctx = document.getElementById("xDriftChart").getContext("2d");
+
+  // Destroy existing chart if it exists
+  if (chartInstance) {
+    chartInstance.destroy();
+  }
+
+  chartInstance = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: ticks,
+      datasets: [{
+        label: `Estimated X over time (Z = ${z})`,
+        data: xValues,
+        borderColor: 'skyblue',
+        fill: false,
+        tension: 0.1
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: {
+          display: true
+        },
+        tooltip: {
+          callbacks: {
+            label: function(context) {
+              return `X ≈ ${context.raw.toFixed(2)} at tick ${context.label}`;
             }
           }
+        }
+      },
+      scales: {
+        x: {
+          title: {
+            display: true,
+            text: 'Ticks'
+          }
         },
-        scales: {
-          x: { title: { display: true, text: 'Ticks' } },
-          y: { title: { display: true, text: 'Estimated X' } }
+        y: {
+          title: {
+            display: true,
+            text: 'Estimated X'
+          }
         }
       }
-    });
-  }
+    }
+  });
+}
 </script>
 
 </body>
