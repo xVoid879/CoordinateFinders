@@ -305,6 +305,13 @@
         resultsDiv.textContent = 'Please only use 0, 1, and ?';
         return;
       }
+      let lines = patternText.trim().split('\n');
+      let lineLengths = lines.map(line => line.length);
+      let firstLength = lineLengths[0];
+      if (!lineLengths.every(len => len === firstLength)) {
+        resultsDiv.textContent = 'Each line in the pattern must have the same number of characters (including spaces).';
+        return;
+      }
       let inputPattern = parsePattern(patternText);
       let { patterns, matches } = await findCloudPattern(imagePaths[selectedVersion], inputPattern);
       let totalMatches = matches.reduce((acc, arr) => acc + arr.length, 0);
