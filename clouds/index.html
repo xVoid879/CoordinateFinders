@@ -301,12 +301,9 @@
         resultsDiv.textContent = 'Please enter a pattern.';
         return;
       }
-      let lines = patternText.trim().split(/\r?\n/);
-      for (let i = 0; i < lines.length; i++) {
-        if (!/^[01?]+$/.test(lines[i])) {
-          resultsDiv.textContent = `Line ${i + 1} contains invalid characters. Please only use 0, 1, and ? with no spaces.`;
-          return;
-        }
+      if (!/^[01?\s]+$/.test(patternText)) {
+        resultsDiv.textContent = 'Please only use 0, 1, and ?';
+        return;
       }
       let lines = patternText.trim().split('\n');
       let lineLengths = lines.map(line => line.length);
