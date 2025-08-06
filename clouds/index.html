@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -300,6 +299,10 @@
       let patternText = patternInput.value;
       if (!patternText.trim()) {
         resultsDiv.textContent = 'Please enter a pattern.';
+        return;
+      }
+      if (!/^[01?\s]+$/.test(patternText)) {
+        resultsDiv.textContent = 'Please only use 0, 1, and ?';
         return;
       }
       let inputPattern = parsePattern(patternText);
