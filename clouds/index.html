@@ -3,7 +3,6 @@
 <head>
   <meta charset="UTF-8" />
   <title>Coordinate Finders</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <link rel="icon" href="/rc.png" type="image/png">
   <style>
     :root {
@@ -157,14 +156,6 @@
     <button onclick="downloadCanvas()">Download Edited Image</button>
   </div>
   <hr/>
-<h3>X Coordinate Tick Change from given Z (Not working, fix later)</h2>
-<div>
-  <h5>(If you have the X and Z Coordinate already you can find out if they restarted the game or not. [IDK Why you would need this but it's cool])</h3>
-  <label for="zGraphInput">Z Coordinate:</label>
-  <input type="number" id="zGraphInput" placeholder="Z" style="width: 100px;" />
-  <button onclick="plotXDrift()">Generate Graph</button>
-</div>
-<canvas id="xDriftChart" width="800" height="400"></canvas>
 </main>
 
 <script>
@@ -416,73 +407,6 @@
   viewerCtx.arc(x, y, 10, 0, 2 * Math.PI); 
   viewerCtx.stroke();
 }  
-
-let chartInstance = null;
-
-function plotXDrift() {
-  const z = parseFloat(document.getElementById("zGraphInput").value);
-  if (isNaN(z)) {
-    alert("Please enter a valid Z coordinate.");
-    return;
-  }
-
-  const ticks = [];
-  const xValues = [];
-  for (let t = 0; t <= 24000; t += 100) {
-    ticks.push(t);
-    xValues.push(z - 0.03 * t + 4); // x = z - 0.03 * t + 4
-  }
-
-  const ctx = document.getElementById("xDriftChart").getContext("2d");
-
-  // Destroy existing chart if it exists
-  if (chartInstance) {
-    chartInstance.destroy();
-  }
-
-  chartInstance = new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels: ticks,
-      datasets: [{
-        label: `Estimated X over time (Z = ${z})`,
-        data: xValues,
-        borderColor: 'skyblue',
-        fill: false,
-        tension: 0.1
-      }]
-    },
-    options: {
-      responsive: true,
-      plugins: {
-        legend: {
-          display: true
-        },
-        tooltip: {
-          callbacks: {
-            label: function(context) {
-              return `X ≈ ${context.raw.toFixed(2)} at tick ${context.label}`;
-            }
-          }
-        }
-      },
-      scales: {
-        x: {
-          title: {
-            display: true,
-            text: 'Ticks'
-          }
-        },
-        y: {
-          title: {
-            display: true,
-            text: 'Estimated X'
-          }
-        }
-      }
-    }
-  });
-}
 </script>
 
 </body>
