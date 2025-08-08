@@ -312,6 +312,11 @@
         return;
       }
 
+      if (totalMatches >= 10000) {
+        resultsDiv.textContent = 'Too many matches';
+        return;
+    }
+
       let outputText = `Got ${totalMatches} match${totalMatches > 1 ? 'es' : ''}\n\n`;
 
       for (let i = 0; i < matches.length; i++) {
