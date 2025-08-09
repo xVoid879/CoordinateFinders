@@ -292,15 +292,15 @@
         resultsDiv.textContent = 'Please enter a pattern.';
         return;
       }
-      if (!/^[01?\s]+$/.test(patternText)) {
-        resultsDiv.textContent = 'Please only use 0, 1, and ?';
+      if (!/^[01?\n]+$/.test(patternText)) {
+        resultsDiv.textContent = 'Please only use 0, 1, ?, and no spaces allowed.';
         return;
       }
       let lines = patternText.trim().split('\n');
       let lineLengths = lines.map(line => line.length);
       let firstLength = lineLengths[0];
       if (!lineLengths.every(len => len === firstLength)) {
-        resultsDiv.textContent = 'Each line in the pattern must have the same number of characters (including spaces).';
+        resultsDiv.textContent = 'Each line in the pattern must have the same number of characters.';
         return;
       }
       let inputPattern = parsePattern(patternText);
