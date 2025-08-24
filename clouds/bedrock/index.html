@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Coordinate Finders</title>
+  <link rel="icon" href="/rc.png" type="image/png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header>
+  <h1>☁️ Clouds</h1>
+  <nav>
+    <a href="/"><button>Home</button></a>
+    <a href="/clouds/"><button>Clouds</button></a>
+    <a href="/textures/"><button>Textures</button></a>
+    <a href="/credits/"><button>Credits</button></a>
+  </nav>
+</header>
+
+<main>
+  <h2>Cloud Pattern Finder</h2>
+
+  <div>
+    <label for="patternInput">Enter Pattern (use 0, 1, ?):</label>
+    <textarea id="patternInput" placeholder="Example:
+001?
+01??
+0110
+0111
+110?
+..."></textarea>
+  </div>
+
+  <div class="image-select">
+    <label>Select Version:</label>
+    <button data-version="old">25w20a- (Old)</button>
+    <button data-version="new">25w21a+ (New)</button>
+  </div>
+
+  <div>
+    <label>Select Graphics Setting to Run Pattern 🔍:</label>
+    <button onclick="runFinder(false)">☁️ Fancy Clouds</button>
+    <button onclick="runFinder(true)">⚡ Fast Clouds</button>
+  </div>
+
+  <div id="results"></div>
+  <canvas id="imageCanvas" style="display: none;"></canvas>
+
+  <hr />
+  <h2>Pixel Viewer and Editor</h2>
+  <div>
+    <label>Select Version (Reset drawing by pressing the version again):</label>
+    <button onclick="loadViewer('old')">Old (25w20a-)</button>
+    <button onclick="loadViewer('new')">New (25w21a+)</button>
+    <button onclick="rotateViewer()">↻ Rotate</button>
+    <button onclick="highlightPixel()">Highlight Pixel Coords</button>
+    <input type="number" id="inputX" placeholder="X" style="width: 60px;" />
+    <input type="number" id="inputY" placeholder="Y" style="width: 60px;" />    
+  </div>
+  <canvas id="viewerCanvas" width="256" height="256" style="cursor: crosshair;"></canvas>
+  <div>
+    <p id="pixelCoords">Hover over the image to see coordinates.</p>
+    <button onclick="downloadCanvas()">Download Edited Image</button>
+  </div>
+  <hr/>
+</main>
+
+<script src="script.js"></script>
+</body>
+</html>
