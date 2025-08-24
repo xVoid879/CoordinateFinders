@@ -1,10 +1,10 @@
 const directionMap = ["north", "west", "south", "east"];
 const imagePaths = {
-  old: 'image/clouds_old.png',
+  ped1218025: 'images/ped1218025.png',
   new: 'image/clouds.png'
 };
 
-let selectedVersion = 'old';
+let selectedVersion = 'ped1218025';
 const patternInput = document.getElementById('patternInput');
 const resultsDiv = document.getElementById('results');
 const canvas = document.getElementById('imageCanvas');
@@ -57,7 +57,7 @@ function parsePattern(text) {
 function getValidCoords(spawnRange, pixelZ, fast) {
   const coords = [];
   const blocks = fast ? 8 : 12;
-  const gridSize = blocks * 256;
+  const gridSize = blocks * 512;
   const intQuotient = Math.floor(spawnRange / gridSize);
   const zOffset = pixelZ * blocks;
 
