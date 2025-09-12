@@ -1,10 +1,10 @@
 const directionMap = ["north", "west", "south", "east"];
 const imagePaths = {
-  ped1218025: 'images/ped1218025.png',
+  old: 'images/ped1218025.png',
   new: 'images/clouds.png'
 };
 
-let selectedVersion = 'ped1218025';
+let selectedVersion = 'old';
 const patternInput = document.getElementById('patternInput');
 const resultsDiv = document.getElementById('results');
 const canvas = document.getElementById('imageCanvas');
