@@ -1,7 +1,7 @@
 const directionMap = ["north", "west", "south", "east"];
 const imagePaths = {
   ped1218025: 'images/ped1218025.png',
-  new: 'image/clouds.png'
+  new: 'images/clouds.png'
 };
 
 let selectedVersion = 'ped1218025';
