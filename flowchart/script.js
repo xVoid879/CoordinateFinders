@@ -64,19 +64,6 @@ const steps = {
     }
 };
 
-// generates blank steps up until 100 until im fishned
-for (let i = 7; i <= 100; i++) {
-    if (!steps["step" + i]) {
-        steps["step" + i] = {
-            text: `Step ${i}`,
-            options: [
-                { label: `Go to Step ${i + 1}`, next: `step${i + 1}` },
-                { label: `Go to Step ${i + 2}`, next: `step${i + 2}` }
-            ]
-        };
-    }
-}
-
 const stepDiv = document.getElementById("step");
 
 function showStep(stepId) {
@@ -115,4 +102,5 @@ continueBtn.addEventListener("click", () => {
         intro.style.display = "none";
         showStep("start");
     }, 600);
+
 });
