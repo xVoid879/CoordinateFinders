@@ -66,7 +66,7 @@ const steps = {
         text: "Version?",
         options: [
             { label: "1.17-", next: "step12" },
-            { label: "1.18+", next: "step99999" }
+            { label: "1.18+", next: "step26" }
         ]
     },
     step12: {
@@ -92,7 +92,7 @@ const steps = {
     step15: {
         text: "!!structurecracker",
         options: [
-            { label: "Not much info/Didn't work", next: "step15" }
+            { label: "Not much info/Didn't work", next: "step16" }
         ]
     },
     step16: {
@@ -199,3 +199,4 @@ continueBtn.addEventListener("click", () => {
     }, 600);
 
 });
+
