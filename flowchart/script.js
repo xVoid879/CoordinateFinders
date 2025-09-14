@@ -22,7 +22,7 @@ const steps = {
     step4: {
         text: "Pause the game. Open to LAN. Enable Cheats",
         options: [
-            { label: "Can't", next: "step7" }
+            { label: "Can't", next: "step6" }
         ]
     },
     step5: {
@@ -104,3 +104,4 @@ continueBtn.addEventListener("click", () => {
     }, 600);
 
 });
+
