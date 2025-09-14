@@ -2,8 +2,8 @@ const steps = {
     start: {
         text: "Welcome to the Seedcracking Flowchart! Choose your path:",
         options: [
-            { label: "Is it Java?", next: "step1" },
-            { label: "Is it Bedrock?", next: "step2" }
+            { label: "Java Edition", next: "step1" },
+            { label: "Bedrock Edition", next: "step2" }
         ]
     },
     step1: {
@@ -61,6 +61,101 @@ const steps = {
     step10: {
         text: "You can't crack a seed with a description alone.",
         end: true
+    },
+    step11: {
+        text: "Version?",
+        options: [
+            { label: "1.17-", next: "step12" },
+            { label: "1.18+", next: "step99999" }
+        ]
+    },
+    step12: {
+        text: "Are there dungeons?",
+        options: [
+            { label: "Yes", next: "step13" },
+            { label: "No", next: "step14" }
+        ]
+    },
+    step13: {
+        text: "!!dungeoncracker",
+        options: [
+            { label: "Didn't work/Not much info", next: "step14" }
+        ]
+    },
+    step14: {
+        text: "Are there structures?",
+        options: [
+            { label: "Yes", next: "step15" },
+            { label: "No", next: "step16" }
+        ]
+    },
+    step15: {
+        text: "!!structurecracker",
+        options: [
+            { label: "Not much info/Didn't work", next: "step15" }
+        ]
+    },
+    step16: {
+        text: "Are there trees?",
+        options: [
+            { label: "Yes", next: "step17" },
+            { label: "No", next: "step18" }
+        ]
+    },
+    step17: {
+        text: "!!treecracker",
+        options: [
+            { label: "Not much info/Didn't work", next: "step18" }
+        ]
+    },
+    step18: {
+        text: "Are there rivers?",
+        options: [
+            { label: "Yes", next: "step19" },
+            { label: "No", next: "step20" }
+        ]
+    },
+    step19: {
+        text: "!!rivers",
+        options: [
+            { label: "Not much info/Didn't work", next: "step20" }
+        ]
+    },
+    step20: {
+        text: "Are there mesa bands?",
+        options: [
+            { label: "Yes", next: "step21" },
+            { label: "No", next: "step22" }
+        ]
+    },
+    step21: {
+        text: "!!mesa_bands",
+        options: [
+            { label: "Not much info/Didn't work", next: "step22" }
+        ]
+    },
+    step22: {
+        text: "If there was not much info and there was end pillars visible, try !!pillars (Most structure crackers have a built in feature for this).",
+        options: [
+            { label: "Didn't work", next: "step23" }
+        ]
+    },
+    step23: {
+        text: "If there was not much info from the structures, did you see the loot?.",
+        options: [
+            { label: "Yes", next: "step24" },
+            { label: "No", next: "step25" }
+        ]
+    },
+    step24: {
+        text: "Ask nicely in the Discord about the progress on Lootinator.",
+        options: [
+            { label: "Probably not in some time", next: "step25" }
+        ]
+    },
+    step25: {
+        text: "Ask nicely about how one would crack this in the MC@H Discord.",
+        end: true
     }
 };
 
@@ -104,4 +199,3 @@ continueBtn.addEventListener("click", () => {
     }, 600);
 
 });
-
