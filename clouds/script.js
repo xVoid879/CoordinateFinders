@@ -89,39 +89,39 @@ async function findCloudPattern(imageSrc, pattern) {
   const height = imageMatrix.length;
   const width = imageMatrix[0].length;
 
-  let patterns = [];
+  const nonWildcardPositions = [];
+  for (let i = 0; i < pattern.length; i++) {
+    for (let j = 0; j < pattern[i].length; j++) {
+      if (pattern[i][j] !== '?') nonWildcardPositions.push([i, j, pattern[i][j]]);
+    }
+  }
+
+  const patterns = [pattern];
+  for (let o = 1; o < 4; o++) {
+    patterns.push(rotate90Matrix(patterns[o-1]));
+  }
+
   let matches = [[], [], [], []];
 
-  let currentPattern = pattern;
-
-  const globalMatchesSet = new Set();
-
   for (let o = 0; o < 4; o++) {
-    if (o !== 0) currentPattern = rotate90Matrix(currentPattern);
-    patterns.push(currentPattern);
+    const currentPattern = patterns[o];
 
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
         let match = true;
-        outer: for (let i = 0; i < currentPattern.length; i++) {
-          for (let j = 0; j < currentPattern[i].length; j++) {
-            let pixel_x = (x + j) % width;
-            let pixel_y = (y + i) % height;
-            const a = imageMatrix[pixel_y][pixel_x];
-            const patternChar = currentPattern[i][j];
-            if (patternChar !== '?' && ((a === '1') !== (patternChar === '1'))) {
-              match = false;
-              break outer;
-            }
+
+        // check only non-wildcard positions
+        for (let pos of nonWildcardPositions) {
+          const i = pos[0], j = pos[1], val = pos[2];
+          const pixel_x = (x + j) % width;
+          const pixel_y = (y + i) % height;
+          if ((imageMatrix[pixel_y][pixel_x] === '1') !== (val === '1')) {
+            match = false;
+            break;
           }
         }
-        if (match) {
-          const key = `${x},${y}`;
-          if (!globalMatchesSet.has(key)) {
-            globalMatchesSet.add(key);
-            matches[o].push([x, y]);
-          }
-        }
+
+        if (match) matches[o].push([x, y]);
       }
     }
   }
@@ -148,8 +148,10 @@ async function runFinder(fastMode) {
     }
     let inputPattern = parsePattern(patternText);
     let { patterns, matches } = await findCloudPattern(imagePaths[selectedVersion], inputPattern);
+    
+    // 1️⃣ Remove duplicates
+    let seenMatches = new Set();
     let totalMatches = matches.reduce((acc, arr) => acc + arr.length, 0);
-
     if (totalMatches === 0) {
       resultsDiv.textContent = 'Pattern not found';
       return;
@@ -163,7 +165,12 @@ async function runFinder(fastMode) {
 
     for (let i = 0; i < matches.length; i++) {
       for (let match of matches[i]) {
-        let directionInfo = determineDirection(inputPattern, patterns[i]);
+        const directionInfo = determineDirection(inputPattern, patterns[i]);
+        const rotationIndex = directionInfo ? directionInfo.rotationIndex : -1;
+        const key = `${match[0]},${match[1]},${rotationIndex}`;
+        if (seenMatches.has(key)) continue;
+        seenMatches.add(key);
+
         let inputDir = directionInfo ? directionInfo.direction : 'unknown';
         outputText += `Input oriented: ${inputDir}, inserted from TOP\n`;
         outputText += `Match at (x=${match[0]}, y=${match[1]}), pattern:\n`;
