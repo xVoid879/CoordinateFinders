@@ -91,8 +91,10 @@ async function findCloudPattern(imageSrc, pattern) {
 
   let patterns = [];
   let matches = [[], [], [], []];
-  let matchesSet = [new Set(), new Set(), new Set(), new Set()];
+
   let currentPattern = pattern;
+
+  const globalMatchesSet = new Set();
 
   for (let o = 0; o < 4; o++) {
     if (o !== 0) currentPattern = rotate90Matrix(currentPattern);
@@ -115,8 +117,8 @@ async function findCloudPattern(imageSrc, pattern) {
         }
         if (match) {
           const key = `${x},${y}`;
-          if (!matchesSet[o].has(key)) {
-            matchesSet[o].add(key);
+          if (!globalMatchesSet.has(key)) {
+            globalMatchesSet.add(key);
             matches[o].push([x, y]);
           }
         }
