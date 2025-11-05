@@ -74,53 +74,51 @@ function getValidCoords(spawnRange, pixelZ, fast) {
   return coords;
 }
 
+async function loadPatternTxt(version) {
+  const txtPath = version === "old" ? "image/old.txt" : "image/new.txt";
+  const response = await fetch(txtPath);
+  if (!response.ok) throw new Error(`Failed to load ${txtPath}`);
+  const text = await response.text();
+  return text.trim().split("\n").map(line => line.trim().split(""));
+}
+
 async function findCloudPattern(imageSrc, pattern) {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => {
-      canvas.width = img.width;
-      canvas.height = img.height;
-      ctx.clearRect(0, 0, img.width, img.height);
-      ctx.drawImage(img, 0, 0);
+  const version = imageSrc.includes("old") ? "old" : "new";
+  const imageMatrix = await loadPatternTxt(version);
 
-      let width = img.width;
-      let height = img.height;
+  const height = imageMatrix.length;
+  const width = imageMatrix[0].length;
 
-      let patterns = [];
-      let matches = [[], [], [], []];
+  let patterns = [];
+  let matches = [[], [], [], []];
 
-      let currentPattern = pattern;
+  let currentPattern = pattern;
 
-      for (let o = 0; o < 4; o++) {
-        if (o !== 0) currentPattern = rotate90Matrix(currentPattern);
-        patterns.push(currentPattern);
+  for (let o = 0; o < 4; o++) {
+    if (o !== 0) currentPattern = rotate90Matrix(currentPattern);
+    patterns.push(currentPattern);
 
-        for (let y = 0; y < height; y++) {
-          for (let x = 0; x < width; x++) {
-            let match = true;
-            outer: for (let i = 0; i < currentPattern.length; i++) {
-              for (let j = 0; j < currentPattern[i].length; j++) {
-                let pixel_x = (x + j) % width;
-                let pixel_y = (y + i) % height;
-                let pixelData = ctx.getImageData(pixel_x, pixel_y, 1, 1).data;
-                let a = pixelData[3];
-                let patternChar = currentPattern[i][j];
-                if (patternChar !== '?' && ((a !== 255) === Boolean(Number(patternChar)))) {
-                  match = false;
-                  break outer;
-                }
-              }
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        let match = true;
+        outer: for (let i = 0; i < currentPattern.length; i++) {
+          for (let j = 0; j < currentPattern[i].length; j++) {
+            let pixel_x = (x + j) % width;
+            let pixel_y = (y + i) % height;
+            const a = imageMatrix[pixel_y][pixel_x];
+            const patternChar = currentPattern[i][j];
+            if (patternChar !== '?' && ((a === '1') !== (patternChar === '1'))) {
+              match = false;
+              break outer;
             }
-            if (match) matches[o].push([x, y]);
           }
         }
+        if (match) matches[o].push([x, y]);
       }
-      resolve({ patterns, matches });
-    };
-    img.onerror = () => reject('Failed to load image: ' + imageSrc);
-    img.src = imageSrc;
-  });
+    }
+  }
+
+  return { patterns, matches };
 }
 
 async function runFinder(fastMode) {
@@ -245,6 +243,6 @@ function highlightPixel() {
   viewerCtx.beginPath();
   viewerCtx.strokeStyle = 'lime';
   viewerCtx.lineWidth = 2;
-  viewerCtx.arc(x, y, 10, 0, 2 * Math.PI); 
+  viewerCtx.arc(x, y, 10, 0, 2 * Math.PI);
   viewerCtx.stroke();
 }
