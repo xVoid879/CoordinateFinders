@@ -91,7 +91,7 @@ async function findCloudPattern(imageSrc, pattern) {
 
   let patterns = [];
   let matches = [[], [], [], []];
-
+  let matchesSet = [new Set(), new Set(), new Set(), new Set()];
   let currentPattern = pattern;
 
   for (let o = 0; o < 4; o++) {
@@ -113,7 +113,13 @@ async function findCloudPattern(imageSrc, pattern) {
             }
           }
         }
-        if (match) matches[o].push([x, y]);
+        if (match) {
+          const key = `${x},${y}`;
+          if (!matchesSet[o].has(key)) {
+            matchesSet[o].add(key);
+            matches[o].push([x, y]);
+          }
+        }
       }
     }
   }
@@ -121,7 +127,8 @@ async function findCloudPattern(imageSrc, pattern) {
   return { patterns, matches };
 }
 
-async function runFinder(fastMode) {  try {
+async function runFinder(fastMode) {  
+  try {
     let patternText = patternInput.value;
     if (!patternText.trim()) {
       resultsDiv.textContent = 'Please enter a pattern.';
