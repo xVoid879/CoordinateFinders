@@ -121,9 +121,7 @@ async function findCloudPattern(imageSrc, pattern) {
   return { patterns, matches };
 }
 
-async function runFinder(fastMode) {
-  resultsDiv.textContent = 'Checks Passed ✅. Processing...';
-  try {
+async function runFinder(fastMode) {  try {
     let patternText = patternInput.value;
     if (!patternText.trim()) {
       resultsDiv.textContent = 'Please enter a pattern.';
