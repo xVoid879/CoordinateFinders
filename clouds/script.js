@@ -244,6 +244,11 @@ function highlightPixel() {
     return;
   }
 
+  if (x < 0 || x > 256 || y < 0 || y > 256) {
+    alert('X and Y must be between 0 and 256');
+    return;
+  }
+
   viewerCtx.clearRect(0, 0, viewerCanvas.width, viewerCanvas.height);
   viewerCtx.drawImage(viewerImage, 0, 0);
 
